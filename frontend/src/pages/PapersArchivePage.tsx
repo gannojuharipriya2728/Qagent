@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, Search, Download, Trash2, ArrowRight, Calendar
 } from 'lucide-react';
-import { api, type QuestionPaper } from '../api/client';
+import { api, API_BASE_URL, type QuestionPaper } from '../api/client';
 
 interface PapersArchivePageProps {
   onSelectPaper: (paperId: number) => void;
@@ -42,8 +42,7 @@ export const PapersArchivePage: React.FC<PapersArchivePageProps> = ({
 
   const handleDownloadPDF = (paperId: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-    window.open(`${apiBase}/papers/${paperId}/pdf`, '_blank');
+    window.open(`${API_BASE_URL}/papers/${paperId}/pdf`, '_blank');
   };
 
   const filtered = papers.filter(p => 

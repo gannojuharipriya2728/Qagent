@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, BarChart2, BookOpen, ArrowLeft, RefreshCw
 } from 'lucide-react';
-import { api, type QuestionPaper, type Question, type PaperAnalytics } from '../api/client';
+import { api, API_BASE_URL, type QuestionPaper, type Question, type PaperAnalytics } from '../api/client';
 import { QuestionPaperPreview } from '../components/QuestionPaperPreview';
 import { CoverageRadarChart } from '../components/CoverageRadarChart';
 import { ExplainabilityDrawer } from '../components/ExplainabilityDrawer';
@@ -69,8 +69,7 @@ export const PaperViewPage: React.FC<PaperViewPageProps> = ({ paperId, onNavigat
   };
 
   const handleExportPDF = () => {
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-    window.open(`${apiBase}/papers/${paperId}/pdf`, '_blank');
+    window.open(`${API_BASE_URL}/papers/${paperId}/pdf`, '_blank');
   };
 
   if (isLoading || !paper) {

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const RAW_API_URL = import.meta.env.VITE_API_BASE_URL || 'https://qagent-production.onrender.com';
+export const API_BASE_URL = RAW_API_URL.endsWith('/api') ? RAW_API_URL : `${RAW_API_URL.replace(/\/$/, '')}/api`;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
