@@ -20,19 +20,20 @@ from dotenv import load_dotenv
 # Ensure root is on pythonpath and .env loaded
 root_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(root_dir))
+sys.path.insert(0, str(root_dir / "backend"))
 load_dotenv(dotenv_path=root_dir / ".env")
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from backend.app.core.config import settings
-from backend.app.core.database import Base
-from backend.app.core.seed import seed_database
-from backend.app.models.academic import Course
-from backend.app.schemas.generation import GenerationRequest, SectionRule
-from backend.app.services.llm.openrouter_provider import OpenRouterProvider
-from backend.app.services.llm.syllabus_analyzer import SyllabusAnalyzer
-from backend.app.services.rag.vector_store import AcademicVectorStore
-from backend.app.services.agents.orchestrator import AgenticGenerationOrchestrator
-from backend.app.services.pdf_generator import QuestionPaperPDFGenerator
+from app.core.config import settings
+from app.core.database import Base
+from app.core.seed import seed_database
+from app.models.academic import Course
+from app.schemas.generation import GenerationRequest, SectionRule
+from app.services.llm.openrouter_provider import OpenRouterProvider
+from app.services.llm.syllabus_analyzer import SyllabusAnalyzer
+from app.services.rag.vector_store import AcademicVectorStore
+from app.services.agents.orchestrator import AgenticGenerationOrchestrator
+from app.services.pdf_generator import QuestionPaperPDFGenerator
 
 async def run_e2e_verification():
     print("=" * 70)
@@ -195,9 +196,9 @@ async def run_e2e_verification():
 
         # Test live OpenRouter Question Generation
         print("  Testing Live OpenRouter / Nemotron Question Generation Agent...")
-        from backend.app.services.agents.requirement_agent import PlannedQuestionSlot
-        from backend.app.services.agents.retrieval_agent import RetrievalResult
-        from backend.app.services.agents.generation_agent import QuestionGenerationAgent
+        from app.services.agents.requirement_agent import PlannedQuestionSlot
+        from app.services.agents.retrieval_agent import RetrievalResult
+        from app.services.agents.generation_agent import QuestionGenerationAgent
         
         sample_slot = PlannedQuestionSlot(
             slot_index=0,

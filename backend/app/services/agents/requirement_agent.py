@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from backend.app.schemas.generation import GenerationRequest
+from app.schemas.generation import GenerationRequest
 
 class PlannedQuestionSlot:
     def __init__(

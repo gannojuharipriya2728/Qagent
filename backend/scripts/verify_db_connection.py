@@ -6,9 +6,10 @@ from sqlalchemy.engine.reflection import Inspector
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR / "backend"))
 
-from backend.app.core.config import settings
-from backend.app.core.database import engine, AsyncSessionLocal
+from app.core.config import settings
+from app.core.database import engine, AsyncSessionLocal
 
 EXPECTED_TABLES = [
     "users",

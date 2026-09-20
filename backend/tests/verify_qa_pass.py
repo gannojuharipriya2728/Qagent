@@ -3,19 +3,20 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from backend.app.core.database import Base
-from backend.app.core.seed import seed_database
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.schemas.academic import CourseCreate, UnitCreate, CourseOutcomeCreate
-from backend.app.schemas.generation import GenerationRequest, SectionRule
-from backend.app.services.agents.orchestrator import AgenticGenerationOrchestrator
-from backend.app.services.pdf_generator import QuestionPaperPDFGenerator
-from backend.app.services.rag.vector_store import vector_store
+from app.core.database import Base
+from app.core.seed import seed_database
+from app.models.academic import Course, Unit, CourseOutcome
+from app.schemas.academic import CourseCreate, UnitCreate, CourseOutcomeCreate
+from app.schemas.generation import GenerationRequest, SectionRule
+from app.services.agents.orchestrator import AgenticGenerationOrchestrator
+from app.services.pdf_generator import QuestionPaperPDFGenerator
+from app.services.rag.vector_store import vector_store
 
 async def run_qa_pass():
     print("=" * 60)
@@ -135,7 +136,7 @@ async def run_qa_pass():
             "ticket", "tgt", "certificate", "oakley", "tunnel", "transport", "transport mode", "non-repudiation", "bell-lapadula", "key",
             "zombie", "botnet", "kernel", "proxy", "layer", "session", "password", "passwords", "clear-signed",
             "plaintext", "ciphertext", "confidentiality", "integrity", "demilitarized", "snort", "infector", "infect",
-            "trojan", "worm", "keylogger", "replay", "anti-replay", "security association", "sa", "ike",
+            "trojan", "worm", "keylogger", "replay", "anti-replay", "antireplay", "security association", "sa", "ike", "denial", "distributed denial", "boot sector",
             "detection", "anomaly", "audit", "gateway", "signature", "stateless", "packet", "ip", "filtering", "protocol", "handshake",
             "exploit", "threat", "vulnerability", "threats", "vulnerabilities"
         ]
@@ -318,7 +319,7 @@ async def run_qa_pass():
         # TEST 13: ANALYTICS CALCULATION TEST
         # -------------------------------------------------------------
         print("\n--- TEST 13: Analytics Calculation Test ---")
-        from backend.app.schemas.paper import PaperAnalyticsResponse
+        from app.schemas.paper import PaperAnalyticsResponse
         
         questions = [
             {

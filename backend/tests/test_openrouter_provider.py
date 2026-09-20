@@ -7,10 +7,10 @@ import httpx
 
 load_dotenv()
 
-from backend.app.services.llm.openrouter_provider import OpenRouterProvider
-from backend.app.services.llm.factory import get_llm_provider
-from backend.app.services.llm.syllabus_analyzer import SyllabusAnalyzer
-from backend.app.core.config import settings
+from app.services.llm.openrouter_provider import OpenRouterProvider
+from app.services.llm.factory import get_llm_provider
+from app.services.llm.syllabus_analyzer import SyllabusAnalyzer
+from app.core.config import settings
 
 def test_openrouter_provider_initialization():
     provider = OpenRouterProvider(
@@ -178,7 +178,7 @@ async def test_syllabus_analyzer_with_openrouter_mock():
         "units": [{"unit_number": 1, "title": "Processes", "topics": "Process management"}],
         "course_outcomes": [{"code": "CO1", "description": "Understand processes", "bloom_level": "Understand", "bloom_source": "explicit"}]
     }
-    with patch("backend.app.services.llm.openrouter_provider.OpenRouterProvider.generate_json", new_callable=AsyncMock) as mock_gen:
+    with patch("app.services.llm.openrouter_provider.OpenRouterProvider.generate_json", new_callable=AsyncMock) as mock_gen:
         mock_gen.return_value = mock_response
         with patch.object(settings, "OPENROUTER_API_KEY", "mock-key"):
             res = await SyllabusAnalyzer.analyze_syllabus_text(mock_syllabus, override_provider="openrouter")
@@ -193,9 +193,9 @@ async def test_production_never_falls_back_to_deterministic():
     (due to missing key, invalid key, or network error), the system raises a clear
     RuntimeError instead of silently generating fake deterministic questions.
     """
-    from backend.app.services.agents.generation_agent import QuestionGenerationAgent
-    from backend.app.services.agents.requirement_agent import PlannedQuestionSlot
-    from backend.app.services.agents.retrieval_agent import RetrievalResult
+    from app.services.agents.generation_agent import QuestionGenerationAgent
+    from app.services.agents.requirement_agent import PlannedQuestionSlot
+    from app.services.agents.retrieval_agent import RetrievalResult
 
     slot = PlannedQuestionSlot(
         slot_index=0,
@@ -227,7 +227,7 @@ async def test_production_never_falls_back_to_deterministic():
 
 @pytest.mark.asyncio
 async def test_ai_health_endpoint():
-    from backend.app.api.ai import get_ai_health
+    from app.api.ai import get_ai_health
     with patch.object(settings, "OPENROUTER_API_KEY", ""):
         health = await get_ai_health()
         assert health["provider"] == settings.LLM_PROVIDER

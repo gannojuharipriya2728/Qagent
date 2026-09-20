@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.database import get_db
-from backend.app.schemas.generation import GenerationRequest, GenerationSessionResponse
-from backend.app.services.agents.orchestrator import AgenticGenerationOrchestrator
-from backend.app.api.deps import get_current_user_optional
-from backend.app.models.user import User
+from app.core.database import get_db
+from app.schemas.generation import GenerationRequest, GenerationSessionResponse
+from app.services.agents.orchestrator import AgenticGenerationOrchestrator
+from app.api.deps import get_current_user_optional
+from app.models.user import User
 
 router = APIRouter(prefix="/generate", tags=["Agentic Generation"])
 

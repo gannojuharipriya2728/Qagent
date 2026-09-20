@@ -98,7 +98,7 @@ cd backend
 pip install -r requirements.txt
 
 # Run FastAPI backend server (auto-seeds default courses & textbooks)
-uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ### 2. Frontend Setup

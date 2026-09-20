@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 from jose import jwt, JWTError
-from backend.app.core.config import settings
+from app.core.config import settings
 
 def get_password_hash(password: str) -> str:
     # PBKDF2-HMAC-SHA256 with 100,000 iterations and 16-byte random salt

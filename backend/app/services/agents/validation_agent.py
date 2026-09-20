@@ -1,7 +1,7 @@
 import re
 from typing import Dict, Any, List, Optional
-from backend.app.services.rag.vector_store import vector_store
-from backend.app.services.agents.requirement_agent import PlannedQuestionSlot
+from app.services.rag.vector_store import vector_store
+from app.services.agents.requirement_agent import PlannedQuestionSlot
 
 BLOOM_KEYWORDS = {
     "Remember": ["define", "state", "list", "name", "recall", "identify", "what is", "write the definition"],

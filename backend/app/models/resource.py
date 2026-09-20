@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
-from backend.app.core.database import Base
+from app.core.database import Base
 
 class Resource(Base):
     __tablename__ = "resources"

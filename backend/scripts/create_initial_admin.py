@@ -15,13 +15,14 @@ from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR / "backend"))
 load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 from sqlalchemy import select
-from backend.app.core.config import settings
-from backend.app.core.database import engine, AsyncSessionLocal
-from backend.app.core.security import get_password_hash
-from backend.app.models.user import User
+from app.core.config import settings
+from app.core.database import engine, AsyncSessionLocal
+from app.core.security import get_password_hash
+from app.models.user import User
 
 async def create_admin(email: str, password: str, name: str, department: str):
     async with AsyncSessionLocal() as session:

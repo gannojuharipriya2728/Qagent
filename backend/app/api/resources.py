@@ -6,19 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from backend.app.core.config import settings
-from backend.app.core.database import get_db
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.models.resource import Resource, ResourceChunk
-from backend.app.schemas.resource import ResourceResponse, ResourceDetailResponse
-from backend.app.api.deps import get_current_user
-from backend.app.models.user import User
-from backend.app.services.rag.document_processor import DocumentProcessor
-from backend.app.services.rag.chunker import AcademicChunker
-from backend.app.services.rag.vector_store import vector_store
-from backend.app.services.llm.syllabus_analyzer import SyllabusAnalyzer
+from app.core.config import settings
+from app.core.database import get_db
+from app.models.academic import Course, Unit, CourseOutcome
+from app.models.resource import Resource, ResourceChunk
+from app.schemas.resource import ResourceResponse, ResourceDetailResponse
+from app.api.deps import get_current_user
+from app.models.user import User
+from app.services.rag.document_processor import DocumentProcessor
+from app.services.rag.chunker import AcademicChunker
+from app.services.rag.vector_store import vector_store
+from app.services.llm.syllabus_analyzer import SyllabusAnalyzer
 
-from backend.app.services.storage import get_storage_service
+from app.services.storage import get_storage_service
 import time
 
 router = APIRouter(prefix="/resources", tags=["Academic Resources"])

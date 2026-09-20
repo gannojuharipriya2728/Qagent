@@ -13,7 +13,7 @@ cd backend
 pip install -r requirements.txt
 
 # Start backend
-uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 The backend initializes the SQLite database at `./data/academic_rag.db` and auto-seeds demonstration accounts and sample courses on first startup.
 

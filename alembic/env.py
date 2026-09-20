@@ -13,9 +13,9 @@ from alembic import context
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from backend.app.core.config import settings
-from backend.app.core.database import Base
-import backend.app.models  # Load all models into Base.metadata
+from app.core.config import settings
+from app.core.database import Base
+import app.models  # Load all models into Base.metadata
 
 config = context.config
 

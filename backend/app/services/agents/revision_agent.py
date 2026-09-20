@@ -1,8 +1,8 @@
 from typing import Dict, Any, List, Optional
-from backend.app.services.agents.requirement_agent import PlannedQuestionSlot
-from backend.app.services.agents.retrieval_agent import RAGRetrievalAgent, RetrievalResult
-from backend.app.services.agents.generation_agent import QuestionGenerationAgent
-from backend.app.services.agents.validation_agent import ValidationAgent, ValidationResultData
+from app.services.agents.requirement_agent import PlannedQuestionSlot
+from app.services.agents.retrieval_agent import RAGRetrievalAgent, RetrievalResult
+from app.services.agents.generation_agent import QuestionGenerationAgent
+from app.services.agents.validation_agent import ValidationAgent, ValidationResultData
 
 class RevisionAgent:
     """

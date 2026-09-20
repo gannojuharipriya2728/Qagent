@@ -17,17 +17,18 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR / "backend"))
 
 from sqlalchemy import select, delete, text
-from backend.app.core.config import settings
-from backend.app.core.database import engine, AsyncSessionLocal
-from backend.app.core.security import get_password_hash, create_access_token
-from backend.app.models.user import User
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.models.resource import Resource, ResourceChunk
-from backend.app.models.paper import QuestionPaper, Question, GenerationSession, ValidationResult
-from backend.app.services.llm.openrouter_provider import OpenRouterProvider
-from backend.app.services.pdf_generator import QuestionPaperPDFGenerator
+from app.core.config import settings
+from app.core.database import engine, AsyncSessionLocal
+from app.core.security import get_password_hash, create_access_token
+from app.models.user import User
+from app.models.academic import Course, Unit, CourseOutcome
+from app.models.resource import Resource, ResourceChunk
+from app.models.paper import QuestionPaper, Question, GenerationSession, ValidationResult
+from app.services.llm.openrouter_provider import OpenRouterProvider
+from app.services.pdf_generator import QuestionPaperPDFGenerator
 
 async def test_full_supabase_flow():
     print("=" * 65)

@@ -4,14 +4,14 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from backend.app.schemas.generation import GenerationRequest, AgentStepLog
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.models.paper import QuestionPaper, Question, GenerationSession, ValidationResult
-from backend.app.services.agents.requirement_agent import RequirementAnalyzerAgent
-from backend.app.services.agents.retrieval_agent import RAGRetrievalAgent
-from backend.app.services.agents.generation_agent import QuestionGenerationAgent
-from backend.app.services.agents.validation_agent import ValidationAgent
-from backend.app.services.agents.revision_agent import RevisionAgent
+from app.schemas.generation import GenerationRequest, AgentStepLog
+from app.models.academic import Course, Unit, CourseOutcome
+from app.models.paper import QuestionPaper, Question, GenerationSession, ValidationResult
+from app.services.agents.requirement_agent import RequirementAnalyzerAgent
+from app.services.agents.retrieval_agent import RAGRetrievalAgent
+from app.services.agents.generation_agent import QuestionGenerationAgent
+from app.services.agents.validation_agent import ValidationAgent
+from app.services.agents.revision_agent import RevisionAgent
 
 class AgenticGenerationOrchestrator:
     @staticmethod

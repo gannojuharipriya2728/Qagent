@@ -4,19 +4,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from backend.app.core.database import get_db
-from backend.app.models.paper import QuestionPaper, Question, ValidationResult
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.schemas.paper import (
+from app.core.database import get_db
+from app.models.paper import QuestionPaper, Question, ValidationResult
+from app.models.academic import Course, Unit, CourseOutcome
+from app.schemas.paper import (
     QuestionPaperResponse, QuestionSchema, QuestionUpdateRequest, QuestionRegenerateRequest, PaperAnalyticsResponse
 )
-from backend.app.api.deps import get_current_user_optional, get_current_user
-from backend.app.models.user import User
-from backend.app.services.pdf_generator import QuestionPaperPDFGenerator
-from backend.app.services.agents.retrieval_agent import RAGRetrievalAgent
-from backend.app.services.agents.generation_agent import QuestionGenerationAgent
-from backend.app.services.agents.validation_agent import ValidationAgent
-from backend.app.services.agents.requirement_agent import PlannedQuestionSlot
+from app.api.deps import get_current_user_optional, get_current_user
+from app.models.user import User
+from app.services.pdf_generator import QuestionPaperPDFGenerator
+from app.services.agents.retrieval_agent import RAGRetrievalAgent
+from app.services.agents.generation_agent import QuestionGenerationAgent
+from app.services.agents.validation_agent import ValidationAgent
+from app.services.agents.requirement_agent import PlannedQuestionSlot
 
 router = APIRouter(prefix="/papers", tags=["Question Papers"])
 
@@ -240,7 +240,7 @@ async def export_paper_pdf(paper_id: int, db: AsyncSession = Depends(get_db)):
     
     # Persist to Storage Service (Local or S3)
     try:
-        from backend.app.services.storage import get_storage_service
+        from app.services.storage import get_storage_service
         storage_service = get_storage_service()
         pdf_storage_key = f"exports/{paper_id}_{safe_filename}"
         await storage_service.upload_bytes(pdf_bytes, pdf_storage_key, content_type="application/pdf")

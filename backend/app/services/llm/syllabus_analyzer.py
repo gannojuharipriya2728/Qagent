@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, Optional, List
-from backend.app.services.llm.factory import get_llm_provider
+from app.services.llm.factory import get_llm_provider
 
 logger = logging.getLogger("qagent.syllabus_analyzer")
 
@@ -96,7 +96,7 @@ SYLLABUS CONTENT:
             except Exception:
                 pass
 
-            from backend.app.services.llm.deterministic_provider import DeterministicAcademicProvider
+            from app.services.llm.deterministic_provider import DeterministicAcademicProvider
             if llm and isinstance(llm, DeterministicAcademicProvider):
                 logger.info("Executing deterministic structured parser fallback for offline mode.")
                 return cls._fallback_parse(text)

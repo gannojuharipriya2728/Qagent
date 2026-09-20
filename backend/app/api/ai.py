@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from backend.app.core.config import settings
-from backend.app.services.llm.openrouter_provider import OpenRouterProvider
+from app.core.config import settings
+from app.services.llm.openrouter_provider import OpenRouterProvider
 
 router = APIRouter(prefix="/ai", tags=["AI Health & Diagnostic"])
 

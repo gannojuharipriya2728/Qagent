@@ -1,10 +1,10 @@
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from backend.app.core.database import Base
-from backend.app.core.seed import seed_database
-from backend.app.schemas.generation import GenerationRequest, SectionRule
-from backend.app.services.agents.orchestrator import AgenticGenerationOrchestrator
-from backend.app.services.pdf_generator import QuestionPaperPDFGenerator
+from app.core.database import Base
+from app.core.seed import seed_database
+from app.schemas.generation import GenerationRequest, SectionRule
+from app.services.agents.orchestrator import AgenticGenerationOrchestrator
+from app.services.pdf_generator import QuestionPaperPDFGenerator
 
 @pytest.mark.asyncio
 async def test_full_agentic_workflow_and_pdf():
@@ -73,8 +73,8 @@ async def test_full_agentic_workflow_and_pdf():
 
 @pytest.mark.asyncio
 async def test_create_custom_course_and_generate_paper():
-    from backend.app.schemas.academic import CourseCreate, UnitCreate, CourseOutcomeCreate
-    from backend.app.models.academic import Course, Unit, CourseOutcome
+    from app.schemas.academic import CourseCreate, UnitCreate, CourseOutcomeCreate
+    from app.models.academic import Course, Unit, CourseOutcome
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
     async with engine.begin() as conn:
@@ -168,7 +168,7 @@ async def test_create_custom_course_and_generate_paper():
 async def test_it701pc_information_security_course_isolation_and_flow():
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
-    from backend.app.models.academic import Course
+    from app.models.academic import Course
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
     async with engine.begin() as conn:

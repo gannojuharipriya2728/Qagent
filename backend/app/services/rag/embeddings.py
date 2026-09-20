@@ -3,7 +3,7 @@ import numpy as np
 from typing import List, Optional
 import httpx
 from sklearn.feature_extraction.text import TfidfVectorizer
-from backend.app.core.config import settings
+from app.core.config import settings
 
 class EmbeddingEngine:
     def __init__(self):

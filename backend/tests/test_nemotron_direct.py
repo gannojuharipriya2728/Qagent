@@ -8,8 +8,8 @@ root_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(root_dir))
 load_dotenv(dotenv_path=root_dir / ".env")
 
-from backend.app.services.llm.openrouter_provider import OpenRouterProvider
-from backend.app.services.llm.syllabus_analyzer import SyllabusAnalyzer
+from app.services.llm.openrouter_provider import OpenRouterProvider
+from app.services.llm.syllabus_analyzer import SyllabusAnalyzer
 
 async def run_direct_test():
     provider = OpenRouterProvider()

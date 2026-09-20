@@ -2,10 +2,10 @@ import os
 import io
 import pytest
 from unittest.mock import MagicMock, patch
-from backend.app.services.storage.local import LocalStorageService
-from backend.app.services.storage.s3 import S3StorageService
-from backend.app.services.storage import get_storage_service
-from backend.app.core.config import settings
+from app.services.storage.local import LocalStorageService
+from app.services.storage.s3 import S3StorageService
+from app.services.storage import get_storage_service
+from app.core.config import settings
 
 @pytest.mark.asyncio
 async def test_local_storage_service_crud(tmp_path):
@@ -79,6 +79,6 @@ async def test_s3_storage_service_with_mocks():
 
 def test_storage_service_factory():
     with patch.object(settings, "STORAGE_PROVIDER", "local"):
-        with patch("backend.app.services.storage._storage_instance", None):
+        with patch("app.services.storage._storage_instance", None):
             svc = get_storage_service()
             assert isinstance(svc, LocalStorageService)

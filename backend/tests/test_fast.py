@@ -10,7 +10,7 @@ root_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(root_dir))
 load_dotenv(dotenv_path=root_dir / ".env")
 
-from backend.app.core.config import settings
+from app.core.config import settings
 
 async def main():
     print(f"Testing OpenRouter API key: {settings.OPENROUTER_API_KEY[:10]}...")

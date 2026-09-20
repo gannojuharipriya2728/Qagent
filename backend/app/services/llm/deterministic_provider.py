@@ -2,7 +2,7 @@ import re
 import json
 import random
 from typing import Dict, Any, Optional, List
-from backend.app.services.llm.base import BaseLLMProvider
+from app.services.llm.base import BaseLLMProvider
 
 BLOOM_ACTION_VERBS = {
     "Remember": ["Define", "State the core properties of", "Identify", "Recall the key principles of"],

@@ -33,17 +33,18 @@ from dotenv import load_dotenv
 # Ensure root directory is on sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR / "backend"))
 load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy import select, func, text
-from backend.app.core.config import settings
-from backend.app.core.database import Base
-from backend.app.core.security import get_password_hash
-from backend.app.models.user import User
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.models.resource import Resource, ResourceChunk
-from backend.app.models.paper import QuestionPaper, Question, GenerationSession, ValidationResult
+from app.core.config import settings
+from app.core.database import Base
+from app.core.security import get_password_hash
+from app.models.user import User
+from app.models.academic import Course, Unit, CourseOutcome
+from app.models.resource import Resource, ResourceChunk
+from app.models.paper import QuestionPaper, Question, GenerationSession, ValidationResult
 
 DATA_DIR = ROOT_DIR / "data"
 DB_FILE = DATA_DIR / "academic_rag.db"

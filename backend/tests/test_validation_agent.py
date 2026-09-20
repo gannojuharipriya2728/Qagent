@@ -1,6 +1,6 @@
 import pytest
-from backend.app.services.agents.validation_agent import ValidationAgent
-from backend.app.services.agents.requirement_agent import PlannedQuestionSlot
+from app.services.agents.validation_agent import ValidationAgent
+from app.services.agents.requirement_agent import PlannedQuestionSlot
 
 @pytest.mark.asyncio
 async def test_validation_agent_valid_and_duplicate():

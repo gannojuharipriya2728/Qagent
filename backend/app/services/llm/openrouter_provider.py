@@ -4,8 +4,8 @@ import asyncio
 import logging
 from typing import Dict, Any, Optional
 import httpx
-from backend.app.core.config import settings
-from backend.app.services.llm.base import BaseLLMProvider
+from app.core.config import settings
+from app.services.llm.base import BaseLLMProvider
 
 logger = logging.getLogger("qagent.openrouter_provider")
 

@@ -1,5 +1,5 @@
 import pytest
-from backend.app.services.rag.vector_store import AcademicVectorStore
+from app.services.rag.vector_store import AcademicVectorStore
 
 @pytest.mark.asyncio
 async def test_vector_store_indexing_and_search():

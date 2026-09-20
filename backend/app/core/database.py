@@ -1,7 +1,7 @@
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
-from backend.app.core.config import settings
+from app.core.config import settings
 
 # Ensure data directories exist
 os.makedirs(settings.STORAGE_DIR, exist_ok=True)

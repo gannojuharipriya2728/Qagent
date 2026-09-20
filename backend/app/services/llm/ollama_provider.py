@@ -2,8 +2,8 @@ import json
 import re
 from typing import Dict, Any, Optional
 import httpx
-from backend.app.core.config import settings
-from backend.app.services.llm.base import BaseLLMProvider
+from app.core.config import settings
+from app.services.llm.base import BaseLLMProvider
 
 class OllamaProvider(BaseLLMProvider):
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):

@@ -2,16 +2,16 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.core.config import settings
-from backend.app.core.database import engine, Base, AsyncSessionLocal
-from backend.app.core.seed import seed_database
-from backend.app.api.auth import router as auth_router
-from backend.app.api.courses import router as courses_router
-from backend.app.api.resources import router as resources_router
-from backend.app.api.generate import router as generate_router
-from backend.app.api.papers import router as papers_router
-from backend.app.api.admin import router as admin_router
-from backend.app.api.ai import router as ai_router
+from app.core.config import settings
+from app.core.database import engine, Base, AsyncSessionLocal
+from app.core.seed import seed_database
+from app.api.auth import router as auth_router
+from app.api.courses import router as courses_router
+from app.api.resources import router as resources_router
+from app.api.generate import router as generate_router
+from app.api.papers import router as papers_router
+from app.api.admin import router as admin_router
+from app.api.ai import router as ai_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,7 +66,7 @@ async def health_check():
 
     storage_status = "connected"
     try:
-        from backend.app.services.storage import get_storage_service
+        from app.services.storage import get_storage_service
         svc = get_storage_service()
         if hasattr(svc, "base_dir"):
             storage_status = "connected" if os.path.exists(svc.base_dir) else "missing_dir"

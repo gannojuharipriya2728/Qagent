@@ -1,5 +1,5 @@
 import pytest
-from backend.app.services.rag.chunker import AcademicChunker
+from app.services.rag.chunker import AcademicChunker
 
 def test_academic_chunker_basic():
     chunker = AcademicChunker(chunk_size=50, chunk_overlap=10)

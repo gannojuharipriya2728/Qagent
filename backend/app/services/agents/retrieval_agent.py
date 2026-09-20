@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
-from backend.app.services.rag.vector_store import vector_store
-from backend.app.services.agents.requirement_agent import PlannedQuestionSlot
+from app.services.rag.vector_store import vector_store
+from app.services.agents.requirement_agent import PlannedQuestionSlot
 
 class RetrievalResult:
     def __init__(

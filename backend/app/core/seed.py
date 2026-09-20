@@ -2,11 +2,11 @@ import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from backend.app.core.security import get_password_hash
-from backend.app.models.user import User
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.models.resource import Resource, ResourceChunk
-from backend.app.services.rag.vector_store import vector_store
+from app.core.security import get_password_hash
+from app.models.user import User
+from app.models.academic import Course, Unit, CourseOutcome
+from app.models.resource import Resource, ResourceChunk
+from app.services.rag.vector_store import vector_store
 
 SAMPLE_COURSES = [
     {

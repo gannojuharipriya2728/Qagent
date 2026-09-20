@@ -1,11 +1,11 @@
 import pytest
 from sqlalchemy import create_engine
-from backend.app.core.config import settings
-from backend.app.core.database import Base
-from backend.app.models.user import User
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.models.resource import Resource, ResourceChunk
-from backend.app.models.paper import QuestionPaper, Question, GenerationSession, ValidationResult
+from app.core.config import settings
+from app.core.database import Base
+from app.models.user import User
+from app.models.academic import Course, Unit, CourseOutcome
+from app.models.resource import Resource, ResourceChunk
+from app.models.paper import QuestionPaper, Question, GenerationSession, ValidationResult
 
 def test_all_models_registered_in_metadata():
     tables = Base.metadata.tables.keys()

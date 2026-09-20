@@ -1,8 +1,8 @@
 from typing import Dict, Any, Optional
 import logging
-from backend.app.services.llm.factory import get_llm_provider
-from backend.app.services.agents.requirement_agent import PlannedQuestionSlot
-from backend.app.services.agents.retrieval_agent import RetrievalResult
+from app.services.llm.factory import get_llm_provider
+from app.services.agents.requirement_agent import PlannedQuestionSlot
+from app.services.agents.retrieval_agent import RetrievalResult
 
 logger = logging.getLogger("qagent.generation_agent")
 

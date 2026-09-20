@@ -2,8 +2,8 @@ import os
 import asyncio
 import logging
 from typing import Optional, BinaryIO
-from backend.app.core.config import settings
-from backend.app.services.storage.base import BaseStorageService
+from app.core.config import settings
+from app.services.storage.base import BaseStorageService
 
 logger = logging.getLogger("qagent.storage.s3")
 

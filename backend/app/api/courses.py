@@ -4,13 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from backend.app.core.database import get_db
-from backend.app.models.academic import Course, Unit, CourseOutcome
-from backend.app.schemas.academic import (
+from app.core.database import get_db
+from app.models.academic import Course, Unit, CourseOutcome
+from app.schemas.academic import (
     CourseCreate, CourseResponse, UnitCreate, UnitResponse, CourseOutcomeCreate, CourseOutcomeResponse
 )
-from backend.app.api.deps import get_current_user, get_current_user_optional
-from backend.app.models.user import User
+from app.api.deps import get_current_user, get_current_user_optional
+from app.models.user import User
 
 router = APIRouter(prefix="/courses", tags=["Academic Courses"])
 
@@ -97,7 +97,7 @@ async def delete_course(
     if not course:
         raise HTTPException(status_code=404, detail="Course not found.")
     
-    from backend.app.services.rag.vector_store import vector_store
+    from app.services.rag.vector_store import vector_store
     vector_store.delete_by_course_id(course_id)
 
     await db.delete(course)

@@ -3,14 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from backend.app.core.database import get_db
-from backend.app.models.user import User
-from backend.app.models.academic import Course
-from backend.app.models.resource import Resource, ResourceChunk
-from backend.app.models.paper import QuestionPaper, Question, GenerationSession
-from backend.app.schemas.auth import UserResponse
-from backend.app.api.deps import get_admin_user
-from backend.app.services.rag.vector_store import vector_store
+from app.core.database import get_db
+from app.models.user import User
+from app.models.academic import Course
+from app.models.resource import Resource, ResourceChunk
+from app.models.paper import QuestionPaper, Question, GenerationSession
+from app.schemas.auth import UserResponse
+from app.api.deps import get_admin_user
+from app.services.rag.vector_store import vector_store
 
 router = APIRouter(prefix="/admin", tags=["Administration"])
 

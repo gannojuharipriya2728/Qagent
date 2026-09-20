@@ -3,8 +3,8 @@ import abc
 import json
 import numpy as np
 from typing import List, Dict, Any, Optional
-from backend.app.core.config import settings
-from backend.app.services.rag.embeddings import embedding_engine
+from app.core.config import settings
+from app.services.rag.embeddings import embedding_engine
 
 class VectorDocument:
     def __init__(

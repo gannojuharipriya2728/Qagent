@@ -1,7 +1,7 @@
-from backend.app.core.config import settings
-from backend.app.services.storage.base import BaseStorageService
-from backend.app.services.storage.local import LocalStorageService
-from backend.app.services.storage.s3 import S3StorageService
+from app.core.config import settings
+from app.services.storage.base import BaseStorageService
+from app.services.storage.local import LocalStorageService
+from app.services.storage.s3 import S3StorageService
 
 _storage_instance = None
 
