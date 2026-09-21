@@ -67,13 +67,18 @@ VECTOR_STORE_PROVIDER=local
 VECTOR_STORAGE_DIR=./data/vector_store
 
 # =================================================================
-# OpenRouter AI Gateway (NVIDIA Nemotron 3.5 Lightning)
+# NVIDIA NIM AI Gateway (Direct Primary Provider)
 # =================================================================
-LLM_PROVIDER=openrouter
+LLM_PROVIDER=nvidia
+NVIDIA_API_KEY=nvapi-your-live-production-key
+NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+
+# Alternative OpenRouter Gateway (Optional Fallback)
 OPENROUTER_API_KEY=sk-or-v1-your-live-production-key
 OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_SITE_URL=https://qagent.youruniversity.edu
+OPENROUTER_SITE_URL=https://qagent-production.onrender.com
 OPENROUTER_APP_NAME=QAgent
 
 # =================================================================
@@ -83,7 +88,7 @@ SECRET_KEY=generate-a-64-character-random-hex-string-using-openssl-rand-hex-32
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 
 # CORS Allowed Origins
-CORS_ORIGINS=["https://qagent.youruniversity.edu"]
+CORS_ORIGINS=["https://qagent-production-1.onrender.com", "https://qagent-production.onrender.com"]
 ```
 
 ---
@@ -150,8 +155,8 @@ Response:
   "database": "connected",
   "storage_provider": "s3",
   "storage": "connected",
-  "llm_provider": "openrouter",
-  "llm_model": "nvidia/nemotron-3.5-lightning:free"
+  "llm_provider": "nvidia",
+  "llm_model": "nvidia/nemotron-3.5-lightning-30b-a3b"
 }
 ```
 

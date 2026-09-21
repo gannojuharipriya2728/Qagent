@@ -228,17 +228,19 @@ async def test_production_never_falls_back_to_deterministic():
 @pytest.mark.asyncio
 async def test_ai_health_endpoint():
     from app.api.ai import get_ai_health
-    with patch.object(settings, "OPENROUTER_API_KEY", ""):
-        health = await get_ai_health()
-        assert health["provider"] == settings.LLM_PROVIDER
-        assert health["model"] == settings.OPENROUTER_MODEL
-        assert health["configured"] is False
-        assert health["reachable"] is False
+    with patch.object(settings, "LLM_PROVIDER", "openrouter"):
+        with patch.object(settings, "OPENROUTER_API_KEY", ""):
+            health = await get_ai_health()
+            assert health["provider"] == "openrouter"
+            assert health["model"] == settings.OPENROUTER_MODEL
+            assert health["configured"] is False
+            assert health["reachable"] is False
+
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(
-    not settings.OPENROUTER_API_KEY and not os.getenv("OPENROUTER_API_KEY"),
-    reason="OPENROUTER_API_KEY environment variable not set"
+    os.getenv("RUN_LIVE_LLM_TESTS", "false").lower() not in ["true", "1", "yes"],
+    reason="RUN_LIVE_LLM_TESTS environment variable not enabled for live network tests"
 )
 async def test_openrouter_provider_live_api_text():
     """
@@ -250,8 +252,8 @@ async def test_openrouter_provider_live_api_text():
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(
-    not settings.OPENROUTER_API_KEY and not os.getenv("OPENROUTER_API_KEY"),
-    reason="OPENROUTER_API_KEY environment variable not set"
+    os.getenv("RUN_LIVE_LLM_TESTS", "false").lower() not in ["true", "1", "yes"],
+    reason="RUN_LIVE_LLM_TESTS environment variable not enabled for live network tests"
 )
 async def test_openrouter_provider_live_api_json():
     """

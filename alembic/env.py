@@ -9,8 +9,9 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
 
-# Ensure workspace root is in sys.path
+# Ensure workspace root and backend directory are in sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR / "backend"))
 sys.path.insert(0, str(ROOT_DIR))
 
 from app.core.config import settings
@@ -51,7 +52,16 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode using AsyncEngine."""
     db_url = settings.ASYNC_DATABASE_URL
-    connect_args = {"ssl": "require"} if settings.IS_POSTGRES else {"check_same_thread": False}
+    ssl_mode = getattr(settings, "DB_SSL_MODE", "require").lower().strip()
+    if settings.IS_POSTGRES:
+        if ssl_mode in ["require", "true", "1"]:
+            connect_args = {"ssl": "require"}
+        elif ssl_mode in ["disable", "false", "0", "off"]:
+            connect_args = {}
+        else:
+            connect_args = {"ssl": ssl_mode}
+    else:
+        connect_args = {"check_same_thread": False}
     
     connectable = create_async_engine(
         db_url,
