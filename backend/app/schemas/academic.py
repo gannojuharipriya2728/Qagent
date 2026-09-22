@@ -93,7 +93,12 @@ class FacultyProfileResponse(BaseModel):
     full_name: str
     department: str
     role: str
+    faculty_id: Optional[str] = None
     assigned_courses: List[CourseResponse] = []
+    courses_assigned: List[CourseResponse] = []
+
+    class Config:
+        from_attributes = True
 
 class FacultyProfileUpdate(BaseModel):
     full_name: Optional[str] = None

@@ -1,10 +1,15 @@
 import os
+from typing import Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
-from app.core.database import engine, Base, AsyncSessionLocal
+from app.core.database import engine, Base, AsyncSessionLocal, get_db
+from app.core.security import decode_access_token
 from app.core.seed import seed_database
+from app.api.deps import security_bearer
 from app.api.auth import router as auth_router, faculty_router
 from app.api.courses import router as courses_router
 from app.api.resources import router as resources_router
@@ -257,6 +262,56 @@ async def debug_routes():
     return {
         "count": len(routes),
         "routes": routes
+    }
+
+
+@app.get("/debug/faculty-profile", tags=["Diagnostics"])
+@app.get(f"{settings.API_V1_STR}/debug/faculty-profile", tags=["Diagnostics"])
+async def debug_faculty_profile(
+    auth_header: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Diagnostic endpoint to verify faculty profile authentication and DB state.
+    Never exposes secrets, tokens, password hashes, or API keys.
+    """
+    from app.models.user import User
+    from sqlalchemy import select, text
+    
+    authenticated = False
+    user_id_present = False
+    user_found = False
+    db_connected = False
+
+    try:
+        await db.execute(text("SELECT 1"))
+        db_connected = True
+    except Exception:
+        db_connected = False
+
+    if auth_header and auth_header.credentials:
+        try:
+            payload = decode_access_token(auth_header.credentials)
+            if payload and payload.get("sub"):
+                authenticated = True
+                user_id_present = True
+                sub_str = str(payload.get("sub")).strip()
+                if sub_str.isdigit():
+                    stmt = select(User).where(User.id == int(sub_str))
+                else:
+                    stmt = select(User).where(User.email == sub_str)
+                user = (await db.execute(stmt)).scalar_one_or_none()
+                if user and user.is_active:
+                    user_found = True
+        except Exception:
+            pass
+
+    return {
+        "route_exists": True,
+        "authenticated": authenticated,
+        "user_id_present": user_id_present,
+        "user_found": user_found,
+        "database_connected": db_connected
     }
 
 

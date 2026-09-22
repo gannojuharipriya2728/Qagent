@@ -95,24 +95,72 @@ async def get_faculty_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    from app.models.academic import Course
-    from sqlalchemy.orm import selectinload
-    stmt = select(Course).options(
-        selectinload(Course.units),
-        selectinload(Course.course_outcomes)
-    ).where(
-        (Course.faculty_id == current_user.id) | (Course.department == current_user.department)
-    ).order_by(Course.code)
-    courses = (await db.execute(stmt)).scalars().all()
+    logger.info("FACULTY_PROFILE_ENTERED")
+    logger.info("AUTH_USER_RESOLVED")
+    logger.info("AUTH_USER_ID", extra={"user_id": current_user.id})
+    logger.info("AUTH_USER_EMAIL", extra={"user_email": current_user.email})
     
-    return FacultyProfileResponse(
-        id=current_user.id,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        department=current_user.department or "Computer Science & Engineering",
-        role=current_user.role or "Faculty",
-        assigned_courses=[CourseResponse.model_validate(c) for c in courses]
-    )
+    try:
+        logger.info("FACULTY_PROFILE_QUERY_START")
+        from app.models.academic import Course
+        from sqlalchemy.orm import selectinload
+        from sqlalchemy import or_
+
+        conditions = [Course.faculty_id == current_user.id]
+        if current_user.department and current_user.department.strip():
+            conditions.append(Course.department == current_user.department.strip())
+
+        stmt = select(Course).options(
+            selectinload(Course.units),
+            selectinload(Course.course_outcomes)
+        ).where(or_(*conditions)).order_by(Course.code)
+        
+        result = await db.execute(stmt)
+        courses = result.scalars().unique().all()
+        logger.info("FACULTY_PROFILE_QUERY_COMPLETE", extra={"courses_count": len(courses)})
+
+        logger.info("FACULTY_PROFILE_RESPONSE_BUILD_START")
+        validated_courses = []
+        for c in courses:
+            try:
+                validated_courses.append(CourseResponse.model_validate(c))
+            except Exception as val_err:
+                logger.warning(f"Error validating course {getattr(c, 'code', 'unknown')}: {val_err}")
+                validated_courses.append(CourseResponse(
+                    id=c.id,
+                    code=c.code or "UNKNOWN",
+                    name=c.name or "Course",
+                    department=c.department or current_user.department or "Computer Science & Engineering",
+                    semester=c.semester or "Semester V",
+                    academic_year=c.academic_year or "2025-2026",
+                    description=c.description,
+                    faculty_id=c.faculty_id,
+                    analysis_status=c.analysis_status or "Pending",
+                    units=[],
+                    course_outcomes=[]
+                ))
+
+        response = FacultyProfileResponse(
+            id=current_user.id,
+            email=current_user.email,
+            full_name=current_user.full_name or "Faculty Member",
+            department=current_user.department or "Computer Science & Engineering",
+            role=current_user.role or "Faculty",
+            faculty_id=f"FAC-{current_user.id:04d}",
+            assigned_courses=validated_courses,
+            courses_assigned=validated_courses
+        )
+        logger.info("FACULTY_PROFILE_RESPONSE_BUILD_COMPLETE")
+        return response
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("FACULTY_PROFILE_FAILED")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load faculty profile: {str(exc)}"
+        )
 
 @router.put("/faculty/profile", response_model=FacultyProfileResponse)
 @faculty_router.put("/profile", response_model=FacultyProfileResponse)
@@ -121,30 +169,67 @@ async def update_faculty_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    from app.models.academic import Course
-    from sqlalchemy.orm import selectinload
-    
-    if profile_in.full_name is not None:
-        current_user.full_name = profile_in.full_name.strip()
-    if profile_in.department is not None:
-        current_user.department = profile_in.department.strip()
-    
-    await db.commit()
-    await db.refresh(current_user)
+    try:
+        from app.models.academic import Course
+        from sqlalchemy.orm import selectinload
+        from sqlalchemy import or_
+        
+        if profile_in.full_name is not None:
+            current_user.full_name = profile_in.full_name.strip()
+        if profile_in.department is not None:
+            current_user.department = profile_in.department.strip()
+        
+        await db.commit()
+        await db.refresh(current_user)
 
-    stmt = select(Course).options(
-        selectinload(Course.units),
-        selectinload(Course.course_outcomes)
-    ).where(
-        (Course.faculty_id == current_user.id) | (Course.department == current_user.department)
-    ).order_by(Course.code)
-    courses = (await db.execute(stmt)).scalars().all()
+        conditions = [Course.faculty_id == current_user.id]
+        if current_user.department and current_user.department.strip():
+            conditions.append(Course.department == current_user.department.strip())
 
-    return FacultyProfileResponse(
-        id=current_user.id,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        department=current_user.department or "Computer Science & Engineering",
-        role=current_user.role or "Faculty",
-        assigned_courses=[CourseResponse.model_validate(c) for c in courses]
-    )
+        stmt = select(Course).options(
+            selectinload(Course.units),
+            selectinload(Course.course_outcomes)
+        ).where(or_(*conditions)).order_by(Course.code)
+        
+        result = await db.execute(stmt)
+        courses = result.scalars().unique().all()
+
+        validated_courses = []
+        for c in courses:
+            try:
+                validated_courses.append(CourseResponse.model_validate(c))
+            except Exception:
+                validated_courses.append(CourseResponse(
+                    id=c.id,
+                    code=c.code or "UNKNOWN",
+                    name=c.name or "Course",
+                    department=c.department or current_user.department or "Computer Science & Engineering",
+                    semester=c.semester or "Semester V",
+                    academic_year=c.academic_year or "2025-2026",
+                    description=c.description,
+                    faculty_id=c.faculty_id,
+                    analysis_status=c.analysis_status or "Pending",
+                    units=[],
+                    course_outcomes=[]
+                ))
+
+        return FacultyProfileResponse(
+            id=current_user.id,
+            email=current_user.email,
+            full_name=current_user.full_name or "Faculty Member",
+            department=current_user.department or "Computer Science & Engineering",
+            role=current_user.role or "Faculty",
+            faculty_id=f"FAC-{current_user.id:04d}",
+            assigned_courses=validated_courses,
+            courses_assigned=validated_courses
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("FACULTY_PROFILE_UPDATE_FAILED")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update faculty profile: {str(exc)}"
+        )
+

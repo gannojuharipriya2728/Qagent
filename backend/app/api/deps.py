@@ -20,11 +20,16 @@ async def get_current_user_optional(
     payload = decode_access_token(token)
     if not payload:
         return None
-    user_id = payload.get("sub")
-    if not user_id:
+    sub = payload.get("sub")
+    if not sub:
         return None
     
-    stmt = select(User).where(User.id == int(user_id))
+    sub_str = str(sub).strip()
+    if sub_str.isdigit():
+        stmt = select(User).where(User.id == int(sub_str))
+    else:
+        stmt = select(User).where(User.email == sub_str)
+
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     return user
@@ -45,14 +50,19 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired authentication token."
         )
-    user_id = payload.get("sub")
-    if not user_id:
+    sub = payload.get("sub")
+    if not sub:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token subject missing."
         )
 
-    stmt = select(User).where(User.id == int(user_id))
+    sub_str = str(sub).strip()
+    if sub_str.isdigit():
+        stmt = select(User).where(User.id == int(sub_str))
+    else:
+        stmt = select(User).where(User.email == sub_str)
+
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     if not user or not user.is_active:

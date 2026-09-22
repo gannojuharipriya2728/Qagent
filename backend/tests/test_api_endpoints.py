@@ -182,3 +182,90 @@ async def test_faculty_profile_endpoint_and_cors():
         assert "/api/faculty/profile" in paths
 
 
+@pytest.mark.asyncio
+async def test_authenticated_faculty_profile_flows():
+    from app.core.database import AsyncSessionLocal
+    from app.models.user import User
+    from app.models.academic import Course
+    from app.core.security import get_password_hash, create_access_token
+
+    uid = uuid.uuid4().hex[:8]
+    async with AsyncSessionLocal() as session:
+        # Create user with minimal data (testing null safety)
+        user = User(
+            email=f"prof_{uid}@university.edu",
+            full_name=f"Prof. Test {uid}",
+            hashed_password=get_password_hash("Pass123!"),
+            role="Faculty",
+            department=None,  # Null department test
+            is_active=True
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+
+        # Create course assigned to faculty
+        course = Course(
+            code=f"CS_{uid}",
+            name=f"Distributed Systems {uid}",
+            department="Computer Science & Engineering",
+            faculty_id=user.id
+        )
+        session.add(course)
+        await session.commit()
+
+        token_int = create_access_token(subject=user.id)
+        token_email = create_access_token(subject=user.email)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. GET with int ID token
+        resp1 = await client.get(
+            "/api/faculty/profile",
+            headers={"Authorization": f"Bearer {token_int}"}
+        )
+        assert resp1.status_code == 200
+        d1 = resp1.json()
+        assert d1["email"] == f"prof_{uid}@university.edu"
+        assert d1["id"] == user.id
+        assert len(d1["assigned_courses"]) >= 1
+        assert d1["assigned_courses"][0]["code"] == f"CS_{uid}"
+        assert len(d1["courses_assigned"]) >= 1
+
+        # 2. GET with email string token
+        resp2 = await client.get(
+            "/api/faculty/profile",
+            headers={"Authorization": f"Bearer {token_email}"}
+        )
+        assert resp2.status_code == 200
+        d2 = resp2.json()
+        assert d2["email"] == f"prof_{uid}@university.edu"
+
+        # 3. PUT update profile
+        put_resp = await client.put(
+            "/api/faculty/profile",
+            headers={"Authorization": f"Bearer {token_int}"},
+            json={
+                "full_name": "Prof. Updated Name",
+                "department": "Information Technology"
+            }
+        )
+        assert put_resp.status_code == 200
+        d3 = put_resp.json()
+        assert d3["full_name"] == "Prof. Updated Name"
+        assert d3["department"] == "Information Technology"
+
+        # 4. Diagnostic endpoint /api/debug/faculty-profile
+        diag_resp = await client.get(
+            "/api/debug/faculty-profile",
+            headers={"Authorization": f"Bearer {token_int}"}
+        )
+        assert diag_resp.status_code == 200
+        diag_data = diag_resp.json()
+        assert diag_data["route_exists"] is True
+        assert diag_data["authenticated"] is True
+        assert diag_data["user_found"] is True
+        assert diag_data["database_connected"] is True
+
+
+
