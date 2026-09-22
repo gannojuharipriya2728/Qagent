@@ -44,7 +44,8 @@ async def create_course(
         department=course_in.department,
         semester=course_in.semester,
         academic_year=course_in.academic_year,
-        description=course_in.description
+        description=course_in.description,
+        faculty_id=current_user.id if current_user else None
     )
     db.add(course)
     await db.flush()
