@@ -45,8 +45,20 @@ def upgrade() -> None:
             sa.Column("semester", sa.String(50), default="Semester V"),
             sa.Column("academic_year", sa.String(50), default="2025-2026"),
             sa.Column("description", sa.Text(), nullable=True),
+            sa.Column("faculty_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=True),
+            sa.Column("analysis_status", sa.String(50), default="Pending"),
+            sa.Column("analysis_data", sa.JSON(), nullable=True),
             sa.Column("created_at", sa.DateTime(), nullable=True),
         )
+    else:
+        course_cols = [col["name"] for col in inspector.get_columns("courses")]
+        with op.batch_alter_table("courses", schema=None) as batch_op:
+            if "faculty_id" not in course_cols:
+                batch_op.add_column(sa.Column("faculty_id", sa.Integer(), nullable=True))
+            if "analysis_status" not in course_cols:
+                batch_op.add_column(sa.Column("analysis_status", sa.String(50), default="Pending"))
+            if "analysis_data" not in course_cols:
+                batch_op.add_column(sa.Column("analysis_data", sa.JSON(), nullable=True))
 
     # 3. units table
     if "units" not in existing_tables:
@@ -120,6 +132,7 @@ def upgrade() -> None:
             sa.Column("course_id", sa.Integer(), sa.ForeignKey("courses.id"), nullable=False),
             sa.Column("created_by", sa.Integer(), sa.ForeignKey("users.id"), nullable=True),
             sa.Column("title", sa.String(255), nullable=False),
+            sa.Column("exam_type", sa.String(100), default="Semester Examination"),
             sa.Column("examination_name", sa.String(255), default="Semester End Examination"),
             sa.Column("institution_name", sa.String(255), default="Department of Computer Science & Engineering"),
             sa.Column("duration_minutes", sa.Integer(), default=180),
@@ -132,6 +145,11 @@ def upgrade() -> None:
             sa.Column("status", sa.String(50), default="Generated"),
             sa.Column("created_at", sa.DateTime(), nullable=True),
         )
+    else:
+        paper_cols = [col["name"] for col in inspector.get_columns("question_papers")]
+        if "exam_type" not in paper_cols:
+            with op.batch_alter_table("question_papers", schema=None) as batch_op:
+                batch_op.add_column(sa.Column("exam_type", sa.String(100), default="Semester Examination"))
 
     # 8. questions table
     if "questions" not in existing_tables:
@@ -149,12 +167,18 @@ def upgrade() -> None:
             sa.Column("course_outcome", sa.String(50), nullable=False),
             sa.Column("difficulty", sa.String(50), default="Medium"),
             sa.Column("question_type", sa.String(50), default="Descriptive"),
+            sa.Column("sub_questions", sa.JSON(), nullable=True),
             sa.Column("source_topics", sa.JSON(), nullable=True),
             sa.Column("source_documents", sa.JSON(), nullable=True),
             sa.Column("generation_reasoning", sa.Text(), nullable=True),
             sa.Column("is_revised", sa.Boolean(), default=False),
             sa.Column("revision_count", sa.Integer(), default=0),
         )
+    else:
+        question_cols = [col["name"] for col in inspector.get_columns("questions")]
+        if "sub_questions" not in question_cols:
+            with op.batch_alter_table("questions", schema=None) as batch_op:
+                batch_op.add_column(sa.Column("sub_questions", sa.JSON(), nullable=True))
 
     # 9. generation_sessions table
     if "generation_sessions" not in existing_tables:

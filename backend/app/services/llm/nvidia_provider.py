@@ -27,6 +27,7 @@ class NvidiaProvider(BaseLLMProvider):
             if api_key is not None
             else settings.NVIDIA_API_KEY
         )
+        self.provider_name = "nvidia"
         self.api_key = resolved_api_key.strip() if resolved_api_key else ""
         self.model = model or settings.NVIDIA_MODEL
         self.base_url = (base_url or settings.NVIDIA_BASE_URL).rstrip("/")

@@ -55,6 +55,7 @@ from app.core.database import engine, Base
 @pytest.mark.asyncio
 async def test_auth_and_courses_flow():
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     transport = ASGITransport(app=app)

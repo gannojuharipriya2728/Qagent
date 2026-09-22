@@ -44,7 +44,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BookOpen },
+    { id: 'profile', label: 'Faculty Profile', icon: ShieldCheck },
+    { id: 'dashboard', label: 'Course Workspace', icon: BookOpen },
     { id: 'resources', label: 'Curriculum & RAG', icon: UploadCloud },
     { id: 'generate', label: 'Generate Paper', icon: Sparkles, highlight: true },
     { id: 'papers', label: 'Exam Archive', icon: FileText },

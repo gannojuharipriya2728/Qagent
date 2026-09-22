@@ -182,17 +182,17 @@ class Settings(BaseSettings):
 
         return origins
 
-    # LLM Settings (NVIDIA Primary Provider)
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "nvidia")  # "nvidia", "openrouter", "ollama", "deterministic"
+    # LLM Settings (OpenRouter Primary Provider / NVIDIA Alternate)
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openrouter")  # "openrouter", "nvidia", "ollama", "deterministic"
     NVIDIA_API_KEY: str = os.getenv("NVIDIA_API_KEY", "")
     NVIDIA_MODEL: str = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
     NVIDIA_BASE_URL: str = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
     
-    # OpenRouter LLM Settings (Fallback/Alternative Provider)
+    # OpenRouter LLM Settings (Primary API Gateway)
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free")
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
     OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    OPENROUTER_SITE_URL: str = os.getenv("OPENROUTER_SITE_URL", "http://localhost:5173")
+    OPENROUTER_SITE_URL: str = os.getenv("OPENROUTER_SITE_URL", "https://qagent-production.onrender.com")
     OPENROUTER_APP_NAME: str = os.getenv("OPENROUTER_APP_NAME", "QAgent")
     
     # Ollama Local Provider Settings (Optional)

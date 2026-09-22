@@ -1,5 +1,5 @@
-from typing import List, Dict, Any
-from app.schemas.generation import GenerationRequest
+from typing import List, Dict, Any, Optional
+from app.schemas.generation import GenerationRequest, SectionRule
 
 class PlannedQuestionSlot:
     def __init__(
@@ -12,7 +12,11 @@ class PlannedQuestionSlot:
         bloom_level: str,
         course_outcome: str,
         difficulty: str,
-        question_type: str
+        question_type: str,
+        has_sub_questions: bool = False,
+        sub_question_parts: Optional[List[Dict[str, Any]]] = None,
+        internal_choice: bool = False,
+        choice_note: Optional[str] = None
     ):
         self.slot_index = slot_index
         self.section_name = section_name
@@ -23,6 +27,10 @@ class PlannedQuestionSlot:
         self.course_outcome = course_outcome
         self.difficulty = difficulty
         self.question_type = question_type
+        self.has_sub_questions = has_sub_questions
+        self.sub_question_parts = sub_question_parts or []
+        self.internal_choice = internal_choice
+        self.choice_note = choice_note
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -34,13 +42,17 @@ class PlannedQuestionSlot:
             "bloom_level": self.bloom_level,
             "course_outcome": self.course_outcome,
             "difficulty": self.difficulty,
-            "question_type": self.question_type
+            "question_type": self.question_type,
+            "has_sub_questions": self.has_sub_questions,
+            "sub_question_parts": self.sub_question_parts,
+            "internal_choice": self.internal_choice,
+            "choice_note": self.choice_note
         }
 
 class RequirementAnalyzerAgent:
     """
     Agent 1: Requirement Analyzer
-    Deconstructs user examination criteria into structured, balanced question blueprints.
+    Deconstructs faculty examination criteria into structured, balanced question blueprints.
     """
     
     @staticmethod
@@ -49,11 +61,8 @@ class RequirementAnalyzerAgent:
         units = available_units if available_units else [1, 2, 3, 4, 5]
         cos = available_cos if available_cos else ["CO1", "CO2", "CO3", "CO4", "CO5"]
 
-        # Validate section marks match total marks
+        # Calculate evaluated total marks = sum(questions_to_answer * marks_per_question)
         calculated_total = sum(s.questions_to_answer * s.marks_per_question for s in request.sections)
-        if calculated_total != request.total_marks:
-            # Adjust total marks if mismatched
-            pass
 
         # Prepare Bloom level pool based on distribution
         bloom_levels_order = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"]
@@ -72,6 +81,15 @@ class RequirementAnalyzerAgent:
         if not diff_pool:
             diff_pool = ["Medium", "Easy", "Hard"]
 
+        # Prepare CO pool if configured
+        co_pool = []
+        if request.co_distribution:
+            for co_name, val in request.co_distribution.items():
+                count = max(1, int(round(float(val) / 10))) if float(val) > 0 else 1
+                co_pool.extend([co_name] * count)
+        if not co_pool:
+            co_pool = list(cos)
+
         slots: List[PlannedQuestionSlot] = []
         slot_idx = 0
         q_num = 1
@@ -81,18 +99,37 @@ class RequirementAnalyzerAgent:
             
             for i in range(sec.total_questions):
                 assigned_unit = target_units[i % len(target_units)]
-                assigned_co = cos[i % len(cos)]
+                assigned_co = co_pool[slot_idx % len(co_pool)]
                 assigned_bloom = bloom_pool[slot_idx % len(bloom_pool)]
                 
-                # In Section A (low marks short questions), bias towards Remember/Understand
+                # In low mark questions (<= 2M), bias towards Remember/Understand
                 if sec.marks_per_question <= 2 and assigned_bloom in ["Evaluate", "Create"]:
                     assigned_bloom = "Remember" if i % 2 == 0 else "Understand"
 
-                # In Section B (high marks descriptive), bias towards Apply/Analyze/Evaluate
+                # In high mark questions (>= 10M), bias towards Apply/Analyze/Evaluate
                 if sec.marks_per_question >= 10 and assigned_bloom == "Remember":
                     assigned_bloom = "Analyze" if i % 2 == 0 else "Apply"
 
                 assigned_diff = diff_pool[slot_idx % len(diff_pool)]
+
+                # Generate default sub-question parts if sub-questions enabled and parts not defined
+                sub_parts = None
+                if sec.sub_question_parts:
+                    sub_parts = [
+                        p.model_dump() if hasattr(p, 'model_dump') else (p.dict() if hasattr(p, 'dict') else dict(p))
+                        for p in sec.sub_question_parts
+                    ]
+                elif sec.has_sub_questions:
+                    half_marks = max(1, sec.marks_per_question // 2)
+                    rem_marks = sec.marks_per_question - half_marks
+                    sub_parts = [
+                        {"part": "a", "marks": half_marks, "bloom_level": "Understand"},
+                        {"part": "b", "marks": rem_marks, "bloom_level": assigned_bloom}
+                    ]
+
+                choice_note = None
+                if sec.total_questions > sec.questions_to_answer:
+                    choice_note = f"Answer any {sec.questions_to_answer} of {sec.total_questions}"
 
                 slots.append(PlannedQuestionSlot(
                     slot_index=slot_idx,
@@ -103,9 +140,14 @@ class RequirementAnalyzerAgent:
                     bloom_level=assigned_bloom,
                     course_outcome=assigned_co,
                     difficulty=assigned_diff,
-                    question_type=sec.question_type
+                    question_type=sec.question_type,
+                    has_sub_questions=sec.has_sub_questions,
+                    sub_question_parts=sub_parts,
+                    internal_choice=sec.internal_choice,
+                    choice_note=choice_note
                 ))
                 slot_idx += 1
                 q_num += 1
 
         return slots
+

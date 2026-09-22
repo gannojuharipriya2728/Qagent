@@ -67,19 +67,19 @@ VECTOR_STORE_PROVIDER=local
 VECTOR_STORAGE_DIR=./data/vector_store
 
 # =================================================================
-# NVIDIA NIM AI Gateway (Direct Primary Provider)
+# AI / LLM Gateway — OpenRouter (Primary Provider)
 # =================================================================
-LLM_PROVIDER=nvidia
-NVIDIA_API_KEY=nvapi-your-live-production-key
-NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
-NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
-
-# Alternative OpenRouter Gateway (Optional Fallback)
+LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-your-live-production-key
-OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
+OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_SITE_URL=https://qagent-production.onrender.com
 OPENROUTER_APP_NAME=QAgent
+
+# Alternative Direct NVIDIA NIM Provider (Optional)
+NVIDIA_API_KEY=nvapi-your-live-production-key
+NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 
 # =================================================================
 # Security & JWT Tokens

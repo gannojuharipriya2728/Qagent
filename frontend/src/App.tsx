@@ -4,6 +4,8 @@ import { Navbar } from './components/Navbar';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { FacultyProfilePage } from './pages/FacultyProfilePage';
+import { AcademicAnalysisPage } from './pages/AcademicAnalysisPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ResourceManagementPage } from './pages/ResourceManagementPage';
 import { GeneratePaperWizard } from './pages/GeneratePaperWizard';
@@ -27,7 +29,7 @@ export const App: React.FC = () => {
       const res = await api.get('/auth/me');
       setCurrentUser(res.data);
       if (currentPage === 'landing' || currentPage === 'login' || currentPage === 'register') {
-        setCurrentPage('dashboard');
+        setCurrentPage('profile');
       }
     } catch (e) {
       localStorage.removeItem('academic_auth_token');
@@ -43,7 +45,7 @@ export const App: React.FC = () => {
 
   const handleLoginSuccess = (_token: string, user: User) => {
     setCurrentUser(user);
-    handleNavigate('dashboard');
+    handleNavigate('profile');
   };
 
   const handleLogout = () => {
@@ -68,8 +70,8 @@ export const App: React.FC = () => {
       <main className="flex-1">
         {currentPage === 'landing' && (
           <LandingPage
-            onGetStarted={() => handleNavigate(currentUser ? 'generate' : 'login')}
-            onExploreDemo={() => handleNavigate(currentUser ? 'dashboard' : 'login')}
+            onGetStarted={() => handleNavigate(currentUser ? 'profile' : 'login')}
+            onExploreDemo={() => handleNavigate(currentUser ? 'profile' : 'login')}
             onQuickLogin={handleLoginSuccess}
           />
         )}
@@ -90,12 +92,36 @@ export const App: React.FC = () => {
           />
         )}
 
+        {currentPage === 'profile' && (
+          <FacultyProfilePage
+            onContinue={(courseId) => {
+              if (courseId) {
+                handleNavigate('dashboard', { prefillCourseId: courseId });
+              } else {
+                handleNavigate('dashboard');
+              }
+            }}
+          />
+        )}
+
         {currentPage === 'dashboard' && (
-          <DashboardPage onNavigate={handleNavigate} />
+          <DashboardPage 
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {currentPage === 'analysis' && (
+          <AcademicAnalysisPage
+            courseId={pageParams.courseId || 1}
+            onNavigateExam={() => handleNavigate('generate', { prefillCourseId: pageParams.courseId })}
+            onNavigateBack={() => handleNavigate('dashboard')}
+          />
         )}
 
         {currentPage === 'resources' && (
-          <ResourceManagementPage />
+          <ResourceManagementPage 
+            onNavigateAnalysis={(cId) => handleNavigate('analysis', { courseId: cId })}
+          />
         )}
 
         {currentPage === 'generate' && (

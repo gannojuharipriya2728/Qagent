@@ -18,6 +18,8 @@ class DeterministicAcademicProvider(BaseLLMProvider):
     High-quality offline academic question generator that extracts grounded concepts
     from retrieved syllabus/textbook chunks, applying pedagogical Bloom's verbs and CO mappings.
     """
+    provider_name: str = "deterministic"
+    model: str = "deterministic-rule-engine"
     
     async def generate_text(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.4) -> str:
         return "Deterministic academic text grounded in syllabus context."

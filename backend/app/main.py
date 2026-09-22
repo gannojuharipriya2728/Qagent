@@ -5,13 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base, AsyncSessionLocal
 from app.core.seed import seed_database
-from app.api.auth import router as auth_router
+from app.api.auth import router as auth_router, faculty_router
 from app.api.courses import router as courses_router
 from app.api.resources import router as resources_router
 from app.api.generate import router as generate_router
 from app.api.papers import router as papers_router
 from app.api.admin import router as admin_router
 from app.api.ai import router as ai_router
+from app.services.llm.factory import get_llm_provider
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -49,6 +50,7 @@ app.add_middleware(
 
 # Mount Routers
 app.include_router(auth_router, prefix=settings.API_V1_STR)
+app.include_router(faculty_router, prefix=settings.API_V1_STR)
 app.include_router(courses_router, prefix=settings.API_V1_STR)
 app.include_router(resources_router, prefix=settings.API_V1_STR)
 app.include_router(generate_router, prefix=settings.API_V1_STR)
@@ -183,6 +185,58 @@ async def health_llm_check():
         "provider": provider,
         "model": model,
         "configured": is_configured
+    }
+
+
+# =================================================================
+# LLM DIAGNOSTIC & RUNTIME VERIFICATION ENDPOINTS (SAFE & NON-SECRET)
+# =================================================================
+
+@app.get("/debug/llm-config", tags=["Diagnostics"])
+@app.get(f"{settings.API_V1_STR}/debug/llm-config", tags=["Diagnostics"])
+async def debug_llm_config():
+    """
+    Diagnostic endpoint returning LLM configuration and key presence.
+    Never exposes actual keys or secrets.
+    """
+    configured_provider = settings.LLM_PROVIDER.lower().strip()
+    resolved_provider = configured_provider if configured_provider in ["openrouter", "nvidia", "ollama", "deterministic"] else "openrouter"
+    
+    if resolved_provider == "openrouter":
+        model = settings.OPENROUTER_MODEL
+        base_url = settings.OPENROUTER_BASE_URL
+    elif resolved_provider == "nvidia":
+        model = settings.NVIDIA_MODEL
+        base_url = settings.NVIDIA_BASE_URL
+    elif resolved_provider == "ollama":
+        model = settings.OLLAMA_MODEL
+        base_url = settings.OLLAMA_BASE_URL
+    else:
+        model = "deterministic-rule-engine"
+        base_url = "local"
+
+    return {
+        "configured_provider": configured_provider,
+        "resolved_provider": resolved_provider,
+        "model": model,
+        "base_url": base_url,
+        "openrouter_key_configured": bool(settings.OPENROUTER_API_KEY and settings.OPENROUTER_API_KEY.strip()),
+        "nvidia_key_configured": bool(settings.NVIDIA_API_KEY and settings.NVIDIA_API_KEY.strip())
+    }
+
+
+@app.get("/debug/llm-provider-path", tags=["Diagnostics"])
+@app.get(f"{settings.API_V1_STR}/debug/llm-provider-path", tags=["Diagnostics"])
+async def debug_llm_provider_path():
+    """
+    Instantiates the LLM provider through the same centralized factory used by
+    the agentic workflow and reports the concrete runtime class and configuration.
+    """
+    provider_inst = get_llm_provider()
+    return {
+        "provider_class": provider_inst.__class__.__name__,
+        "provider": getattr(provider_inst, "provider_name", settings.LLM_PROVIDER.lower().strip()),
+        "model": getattr(provider_inst, "model", settings.OPENROUTER_MODEL)
     }
 
 

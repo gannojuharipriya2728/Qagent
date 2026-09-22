@@ -1,5 +1,6 @@
 from typing import Dict, Any, Optional
 import logging
+from app.core.config import settings
 from app.services.llm.factory import get_llm_provider
 from app.services.agents.requirement_agent import PlannedQuestionSlot
 from app.services.agents.retrieval_agent import RetrievalResult
@@ -44,6 +45,11 @@ CRITICAL GENERATION RULES:
         override_provider: Optional[str] = None
     ) -> Dict[str, Any]:
         llm = None
+        sub_prompt = ""
+        if slot.has_sub_questions and slot.sub_question_parts:
+            parts_str = ", ".join([f"Part ({p.get('letter', 'a')}): {p.get('marks', 2)} Marks" for p in slot.sub_question_parts])
+            sub_prompt = f"- Sub-question Structure: Generate sub-questions labeled as: {parts_str}. The sum of sub-question marks MUST equal {slot.marks} Marks."
+
         user_prompt = f"""Generate an examination question based on the following specifications and retrieved academic context:
 
 SPECIFICATIONS:
@@ -51,11 +57,12 @@ SPECIFICATIONS:
 - Section: {slot.section_name}
 - Question Number: {slot.question_number}
 - Unit: {slot.unit_number}
-- Marks: {slot.marks}
+- Total Marks: {slot.marks}
 - Difficulty: {slot.difficulty}
 - Target Bloom Level: {slot.bloom_level}
 - Target Course Outcome: {slot.course_outcome}
 - Question Type: {slot.question_type}
+{sub_prompt}
 
 RETRIEVED ACADEMIC CONTEXT:
 {retrieval.assembled_context}
@@ -63,6 +70,10 @@ RETRIEVED ACADEMIC CONTEXT:
 OUTPUT JSON SCHEMA:
 {{
   "question_text": "Complete question text",
+  "sub_questions": [
+    {{"letter": "a", "text": "Sub question text", "marks": 3}},
+    {{"letter": "b", "text": "Sub question text", "marks": 2}}
+  ],
   "unit": {slot.unit_number},
   "marks": {slot.marks},
   "difficulty": "{slot.difficulty}",
@@ -75,6 +86,18 @@ OUTPUT JSON SCHEMA:
 """
 
         try:
+            provider_name = (override_provider or settings.LLM_PROVIDER).lower().strip()
+            model_name = settings.OPENROUTER_MODEL if provider_name == "openrouter" else (settings.NVIDIA_MODEL if provider_name == "nvidia" else "local")
+            logger.info(
+                "LLM_GENERATION_START",
+                extra={
+                    "provider": provider_name,
+                    "model": model_name,
+                    "agent": "question_generator",
+                    "unit": slot.unit_number,
+                    "co": slot.course_outcome,
+                },
+            )
             llm = get_llm_provider(override_provider)
             result = await llm.generate_json(
                 prompt=user_prompt,
@@ -84,8 +107,21 @@ OUTPUT JSON SCHEMA:
             
             # Populate and enforce ground-truth slot parameters
             q_text = result.get("question_text") or result.get("question") or ""
+            sub_qs = result.get("sub_questions")
+            
+            # If slot requested sub-questions but LLM didn't format sub_questions array, synthesize from parts
+            if slot.has_sub_questions and not sub_qs and slot.sub_question_parts:
+                sub_qs = []
+                for p in slot.sub_question_parts:
+                    sub_qs.append({
+                        "letter": p.get("letter", "a"),
+                        "text": f"{q_text} (Part {p.get('letter', 'a')})",
+                        "marks": p.get("marks", slot.marks // 2)
+                    })
+
             result["question_text"] = q_text
             result["question"] = q_text
+            result["sub_questions"] = sub_qs
             result["unit"] = slot.unit_number
             result["marks"] = slot.marks
             result["bloom_level"] = result.get("bloom_level") or slot.bloom_level

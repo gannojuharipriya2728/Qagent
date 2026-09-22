@@ -134,11 +134,38 @@ async def test_openrouter_provider_429_retry_handling():
             mock_sleep.assert_called_once()
 
 def test_llm_factory_openrouter_provider_selection():
-    with patch.object(settings, "OPENROUTER_API_KEY", "test-or-key"):
-        provider = get_llm_provider("openrouter")
-        assert isinstance(provider, OpenRouterProvider)
-        assert provider.api_key == "test-or-key"
-        assert provider.model == settings.OPENROUTER_MODEL
+    with patch.object(settings, "LLM_PROVIDER", "openrouter"):
+        with patch.object(settings, "OPENROUTER_API_KEY", "test-or-key"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+                with patch.object(settings, "NVIDIA_API_KEY", ""):
+                    provider = get_llm_provider()
+                    assert isinstance(provider, OpenRouterProvider)
+                    assert provider.api_key == "test-or-key"
+                    assert provider.model == "nvidia/nemotron-3.5-lightning-30b-a3b"
+
+def test_llm_factory_openrouter_with_nemotron_model_never_requires_nvidia_key():
+    """
+    Ensure that passing 'nvidia/nemotron-3.5-lightning-30b-a3b' to OpenRouter
+    does NOT trigger NvidiaProvider and does NOT require NVIDIA_API_KEY.
+    """
+    with patch.object(settings, "LLM_PROVIDER", "openrouter"):
+        with patch.object(settings, "OPENROUTER_API_KEY", "test-secret-key"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+                with patch.object(settings, "NVIDIA_API_KEY", ""):
+                    provider = get_llm_provider()
+                    assert isinstance(provider, OpenRouterProvider)
+                    assert provider.model == "nvidia/nemotron-3.5-lightning-30b-a3b"
+                    assert provider.endpoint == "https://openrouter.ai/api/v1/chat/completions"
+
+def test_llm_factory_nvidia_only_selected_when_explicit():
+    """
+    Ensure NvidiaProvider is only instantiated when LLM_PROVIDER=nvidia.
+    """
+    from app.services.llm.nvidia_provider import NvidiaProvider
+    with patch.object(settings, "LLM_PROVIDER", "nvidia"):
+        with patch.object(settings, "NVIDIA_API_KEY", "nv-test-key"):
+            provider = get_llm_provider()
+            assert isinstance(provider, NvidiaProvider)
 
 @pytest.mark.asyncio
 async def test_syllabus_analyzer_structured_flow():
@@ -264,3 +291,167 @@ async def test_openrouter_provider_live_api_json():
     res = await provider.generate_json(prompt)
     assert isinstance(res, dict)
     assert "topic" in res or "concepts" in res
+
+
+@pytest.mark.asyncio
+async def test_agent3_provider_resolution_is_openrouter_provider():
+    """
+    Requirement 10: Provider resolution used by Agent 3 with:
+    LLM_PROVIDER=openrouter
+    OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+    NVIDIA_API_KEY=""
+    Assert provider.__class__.__name__ == "OpenRouterProvider"
+    """
+    with patch.object(settings, "LLM_PROVIDER", "openrouter"):
+        with patch.object(settings, "OPENROUTER_API_KEY", "sk-or-v1-mock-key"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+                with patch.object(settings, "NVIDIA_API_KEY", ""):
+                    provider = get_llm_provider()
+                    assert provider.__class__.__name__ == "OpenRouterProvider"
+                    assert provider.provider_name == "openrouter"
+                    assert provider.model == "nvidia/nemotron-3.5-lightning-30b-a3b"
+
+
+@pytest.mark.asyncio
+async def test_openrouter_request_payload_and_authorization():
+    """
+    Requirement 11: Mock POST https://openrouter.ai/api/v1/chat/completions
+    Verify Authorization = Bearer OPENROUTER_API_KEY
+    JSON contains "model": "nvidia/nemotron-3.5-lightning-30b-a3b"
+    Verify request is NOT sent to a direct NVIDIA endpoint.
+    """
+    provider = OpenRouterProvider(
+        api_key="sk-or-v1-my-secret-key",
+        model="nvidia/nemotron-3.5-lightning-30b-a3b",
+        base_url="https://openrouter.ai/api/v1"
+    )
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [{"message": {"role": "assistant", "content": '{"question_text": "Define AES.", "bloom_level": "Remember"}'}}]
+    }
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        result = await provider.generate_json("Generate question prompt")
+        assert result["question_text"] == "Define AES."
+
+        # Verify call arguments
+        mock_post.assert_called_once()
+        call_url = mock_post.call_args[0][0]
+        call_headers = mock_post.call_args[1]["headers"]
+        call_json = mock_post.call_args[1]["json"]
+
+        # Assert correct URL and NOT direct NVIDIA URL
+        assert call_url == "https://openrouter.ai/api/v1/chat/completions"
+        assert "api.nvidia.com" not in call_url
+
+        # Assert Authorization header uses OpenRouter key
+        assert call_headers["Authorization"] == "Bearer sk-or-v1-my-secret-key"
+
+        # Assert payload contains Nemotron model
+        assert call_json["model"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+
+
+@pytest.mark.asyncio
+async def test_agent3_to_openrouter_generation_flow():
+    """
+    Test full Agent 3 QuestionGenerationAgent -> get_llm_provider -> OpenRouterProvider mock.
+    """
+    from app.services.agents.generation_agent import QuestionGenerationAgent
+    from app.services.agents.requirement_agent import PlannedQuestionSlot
+    from app.services.agents.retrieval_agent import RetrievalResult
+
+    slot = PlannedQuestionSlot(
+        slot_index=0,
+        section_name="Section A",
+        question_number=1,
+        marks=5,
+        unit_number=1,
+        bloom_level="Understand",
+        course_outcome="CO1",
+        difficulty="Medium",
+        question_type="Descriptive"
+    )
+    retrieval = RetrievalResult(
+        assembled_context="Symmetric encryption algorithms include DES, 3DES, and AES.",
+        source_documents=[{"document_name": "Syllabus Unit 1"}],
+        source_topics=["Symmetric Ciphers"]
+    )
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [{
+            "message": {
+                "role": "assistant",
+                "content": json.dumps({
+                    "question_text": "Explain the working principle of AES algorithm.",
+                    "unit": 1,
+                    "marks": 5,
+                    "difficulty": "Medium",
+                    "bloom_level": "Understand",
+                    "course_outcome": "CO1",
+                    "question_type": "Descriptive",
+                    "source_topics": ["Symmetric Ciphers"],
+                    "reasoning": "Direct syllabus match"
+                })
+            }
+        }]
+    }
+
+    with patch.object(settings, "LLM_PROVIDER", "openrouter"):
+        with patch.object(settings, "OPENROUTER_API_KEY", "sk-or-v1-valid-key"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+                with patch.object(settings, "NVIDIA_API_KEY", ""):
+                    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+                        mock_post.return_value = mock_resp
+                        res = await QuestionGenerationAgent.generate_question(
+                            slot=slot,
+                            retrieval=retrieval,
+                            course_name="Information Security"
+                        )
+                        assert res["question_text"] == "Explain the working principle of AES algorithm."
+                        assert res["unit"] == 1
+                        assert res["marks"] == 5
+                        assert res["bloom_level"] == "Understand"
+                        mock_post.assert_called_once()
+                        assert mock_post.call_args[0][0] == "https://openrouter.ai/api/v1/chat/completions"
+
+
+@pytest.mark.asyncio
+async def test_debug_llm_endpoints():
+    """
+    Test GET /api/debug/llm-config and GET /api/debug/llm-provider-path
+    """
+    from httpx import AsyncClient, ASGITransport
+    from app.main import app
+
+    with patch.object(settings, "LLM_PROVIDER", "openrouter"):
+        with patch.object(settings, "OPENROUTER_API_KEY", "sk-or-test-key"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+                with patch.object(settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"):
+                    with patch.object(settings, "NVIDIA_API_KEY", ""):
+                        transport = ASGITransport(app=app)
+                        async with AsyncClient(transport=transport, base_url="http://test") as client:
+                            # 1. Config endpoint
+                            resp_cfg = await client.get("/api/debug/llm-config")
+                            assert resp_cfg.status_code == 200
+                            data_cfg = resp_cfg.json()
+                            assert data_cfg["configured_provider"] == "openrouter"
+                            assert data_cfg["resolved_provider"] == "openrouter"
+                            assert data_cfg["model"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+                            assert data_cfg["base_url"] == "https://openrouter.ai/api/v1"
+                            assert data_cfg["openrouter_key_configured"] is True
+                            assert data_cfg["nvidia_key_configured"] is False
+
+                            # 2. Provider path endpoint
+                            resp_path = await client.get("/api/debug/llm-provider-path")
+                            assert resp_path.status_code == 200
+                            data_path = resp_path.json()
+                            assert data_path["provider_class"] == "OpenRouterProvider"
+                            assert data_path["provider"] == "openrouter"
+                            assert data_path["model"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+
+

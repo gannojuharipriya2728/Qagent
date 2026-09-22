@@ -166,7 +166,7 @@ class QuestionPaperPDFGenerator:
         story.append(Paragraph(inst_name.upper(), inst_title_style))
         story.append(Spacer(1, 2))
         
-        exam_name = paper_data.get("examination_name", "Semester End Examination")
+        exam_name = paper_data.get("examination_name") or paper_data.get("exam_type", "Semester End Examination")
         story.append(Paragraph(exam_name, exam_name_style))
         story.append(Spacer(1, 6))
 
@@ -236,6 +236,16 @@ class QuestionPaperPDFGenerator:
                 marks = str(q.get("marks", ""))
                 co = str(q.get("course_outcome", ""))
                 bloom = str(q.get("bloom_level", ""))
+
+                sub_qs = q.get("sub_questions")
+                if sub_qs and isinstance(sub_qs, list) and len(sub_qs) > 0:
+                    sub_parts_html = []
+                    for sq in sub_qs:
+                        sq_part = sq.get("part", "a")
+                        sq_text = sq.get("question_text", "").replace("\n", "<br/>")
+                        sq_marks = sq.get("marks", "")
+                        sub_parts_html.append(f"<b>({sq_part})</b> {sq_text} <i>[{sq_marks}M]</i>")
+                    q_text = "<br/>".join(sub_parts_html)
 
                 table_rows.append([
                     Paragraph(f"<b>{q_num}</b>", q_num_style),

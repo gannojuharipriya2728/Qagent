@@ -7,6 +7,7 @@ from app.services.llm.base import BaseLLMProvider
 
 class OllamaProvider(BaseLLMProvider):
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
+        self.provider_name = "ollama"
         self.base_url = (base_url or settings.OLLAMA_BASE_URL).rstrip("/")
         self.model = model or settings.OLLAMA_MODEL
 

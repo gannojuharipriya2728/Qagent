@@ -182,29 +182,41 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               {courses.map((c) => (
                 <div 
                   key={c.id} 
-                  className="bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-xs hover-card-lift border-l-4 border-l-blue-600"
+                  className="bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-xs hover-card-lift border-l-4 border-l-indigo-600"
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                    <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
                       {c.code}
                     </span>
-                    <span className="text-[11px] font-semibold text-slate-400">{c.semester}</span>
+                    <span className="text-[11px] font-semibold text-slate-500">Sem: {c.semester}</span>
                   </div>
                   <h3 className="text-sm font-bold text-slate-900 truncate">{c.name}</h3>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{c.description}</p>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                    {c.department ? `${c.department} • ` : ''}AY: {c.academic_year || '2026-27'}
+                  </p>
                   
                   <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500 font-medium">
-                    <div className="flex items-center space-x-2">
-                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-semibold">{c.units?.length || 5} Units</span>
-                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-semibold">{c.course_outcomes?.length || 3} COs</span>
+                    <div className="flex items-center space-x-1.5">
+                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-semibold">{c.units?.length || 0} Units</span>
+                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-semibold">{c.course_outcomes?.length || 0} COs</span>
                     </div>
-                    <button
-                      onClick={() => onNavigate('generate', { prefillCourseId: c.id })}
-                      className="font-bold text-blue-600 hover:text-blue-700 flex items-center space-x-1 cursor-pointer"
-                    >
-                      <span>Generate</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onNavigate('analysis', { courseId: c.id })}
+                        className="font-bold text-slate-600 hover:text-indigo-600 flex items-center space-x-1 cursor-pointer"
+                        title="View & Approve AI Academic Analysis"
+                      >
+                        <span>Analysis</span>
+                      </button>
+                      <button
+                        onClick={() => onNavigate('generate', { prefillCourseId: c.id })}
+                        className="font-bold text-indigo-600 hover:text-indigo-700 flex items-center space-x-1 cursor-pointer"
+                        title="Create Examination for Course"
+                      >
+                        <span>Exam</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

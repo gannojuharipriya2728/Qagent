@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  UploadCloud, Trash2, Search, Filter, Eye, CheckCircle2, AlertCircle, Clock, Plus, X, Layers
+  UploadCloud, Trash2, Search, Filter, Eye, CheckCircle2, AlertCircle, Clock, Plus, X, Layers,
+  BookOpen, Sparkles, ArrowRight
 } from 'lucide-react';
 import { api, type Resource, type Course } from '../api/client';
 import { CreateCourseModal } from '../components/CreateCourseModal';
 
-export const ResourceManagementPage: React.FC = () => {
+interface ResourceManagementPageProps {
+  onNavigateAnalysis?: (courseId: number) => void;
+}
+
+export const ResourceManagementPage: React.FC<ResourceManagementPageProps> = ({
+  onNavigateAnalysis
+}) => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<number | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeUnitTab, setActiveUnitTab] = useState<string>('all'); // 'all', 'general', '1', '2', '3', '4', '5'
   
   // Course creation modal state
   const [showCourseModal, setShowCourseModal] = useState(false);
@@ -40,7 +48,7 @@ export const ResourceManagementPage: React.FC = () => {
       setResources(resList.data);
       setCourses(courseList.data);
       if (courseList.data.length > 0 && uploadCourseId === '') {
-        setUploadCourseId(courseList.data[0].id);
+        setUploadCourseId(selectedCourseId || courseList.data[0].id);
       }
     } catch (e) {
       console.error('Failed to load resources:', e);
@@ -58,6 +66,18 @@ export const ResourceManagementPage: React.FC = () => {
     }
   };
 
+  const handleOpenUploadForUnit = (unitNum?: number) => {
+    if (unitNum !== undefined) {
+      setUploadUnit(unitNum);
+    } else {
+      setUploadUnit('');
+    }
+    if (selectedCourseId) {
+      setUploadCourseId(selectedCourseId);
+    }
+    setShowUploadModal(true);
+  };
+
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile || !uploadCourseId) return;
@@ -69,7 +89,7 @@ export const ResourceManagementPage: React.FC = () => {
     formData.append('course_id', String(uploadCourseId));
     formData.append('title', uploadTitle || uploadFile.name);
     formData.append('document_type', uploadDocType);
-    if (uploadUnit) {
+    if (uploadUnit !== '') {
       formData.append('unit_number', String(uploadUnit));
     }
     formData.append('file', uploadFile);
@@ -108,11 +128,17 @@ export const ResourceManagementPage: React.FC = () => {
     }
   };
 
-  const filteredResources = resources.filter(r => 
-    r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.document_type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredResources = resources.filter(r => {
+    const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.document_type.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (activeUnitTab === 'all') return true;
+    if (activeUnitTab === 'general') return !r.unit_number;
+    return String(r.unit_number) === activeUnitTab;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -120,31 +146,44 @@ export const ResourceManagementPage: React.FC = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Academic Resource Hub & RAG Vector Store</h1>
-          <p className="text-xs text-slate-500 mt-1">Upload syllabi, textbooks, and past papers for automated chunking and vector indexing</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Course Resources & Knowledge Grounding</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Upload syllabi, textbooks, lecture notes, and past papers (Unit-wise or General) for RAG vector indexing
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          {selectedCourseId && onNavigateAnalysis && (
+            <button
+              onClick={() => onNavigateAnalysis(Number(selectedCourseId))}
+              className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center space-x-1.5 transition-all"
+            >
+              <Sparkles className="w-4 h-4 text-indigo-200" />
+              <span>Academic Analysis</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+
           <button
             onClick={() => setShowCourseModal(true)}
-            className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold border border-slate-300 shadow-xs flex items-center space-x-1.5 transition-all"
+            className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold border border-slate-300 shadow-sm flex items-center space-x-1.5 transition-all"
           >
-            <Plus className="w-4 h-4 text-blue-600" />
-            <span>+ Add Course</span>
+            <Plus className="w-4 h-4 text-indigo-600" />
+            <span>+ Create Course</span>
           </button>
 
           <button
-            onClick={() => setShowUploadModal(true)}
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 flex items-center space-x-2 transition-all"
+            onClick={() => handleOpenUploadForUnit()}
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center space-x-2 transition-all"
           >
             <UploadCloud className="w-4 h-4" />
-            <span>Upload Academic Document</span>
+            <span>Upload Document</span>
           </button>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-4.5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Filter and Course Selection Bar */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-4.5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -152,7 +191,7 @@ export const ResourceManagementPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search resources, topics, files..."
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 font-medium"
           />
         </div>
 
@@ -160,7 +199,11 @@ export const ResourceManagementPage: React.FC = () => {
           <Filter className="w-4 h-4 text-slate-400 shrink-0" />
           <select
             value={selectedCourseId}
-            onChange={(e) => setSelectedCourseId(e.target.value ? Number(e.target.value) : '')}
+            onChange={(e) => {
+              const val = e.target.value ? Number(e.target.value) : '';
+              setSelectedCourseId(val);
+              if (val) setUploadCourseId(val);
+            }}
             className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer"
           >
             <option value="">All Courses ({courses.length})</option>
@@ -168,19 +211,82 @@ export const ResourceManagementPage: React.FC = () => {
               <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Upload Modes & Unit Tabs */}
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+            Upload Modes & Unit Classification
+          </span>
+          <span className="text-[11px] text-slate-400">
+            Upload unit-specific chapters or general course-wide materials
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            type="button"
-            onClick={() => setShowCourseModal(true)}
-            title="Create New Academic Course"
-            className="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-2xl text-xs font-bold transition-colors shrink-0 cursor-pointer"
+            onClick={() => setActiveUnitTab('all')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeUnitTab === 'all'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
           >
-            + New
+            All Resources ({resources.length})
           </button>
+
+          <button
+            onClick={() => setActiveUnitTab('general')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeUnitTab === 'general'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+          >
+            General / Course Level
+          </button>
+
+          {[1, 2, 3, 4, 5].map((u) => {
+            const count = resources.filter(r => r.unit_number === u).length;
+            return (
+              <button
+                key={u}
+                onClick={() => setActiveUnitTab(String(u))}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  activeUnitTab === String(u)
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                <span>Unit {u}</span>
+                {count > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    activeUnitTab === String(u) ? 'bg-indigo-800 text-indigo-100' : 'bg-slate-300 text-slate-800'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          <div className="ml-auto">
+            <button
+              onClick={() => handleOpenUploadForUnit(activeUnitTab !== 'all' && activeUnitTab !== 'general' ? Number(activeUnitTab) : undefined)}
+              className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Upload to {activeUnitTab === 'all' ? 'Course' : activeUnitTab === 'general' ? 'General' : `Unit ${activeUnitTab}`}</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Resource Table */}
-      <div className="bg-white border border-slate-200 rounded-3xl shadow-xs overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
@@ -219,11 +325,11 @@ export const ResourceManagementPage: React.FC = () => {
                     </td>
 
                     <td className="py-4 px-3 font-semibold text-slate-800">
-                      {res.unit_number ? `Unit ${res.unit_number}` : 'All Units'}
+                      {res.unit_number ? `Unit ${res.unit_number}` : 'General / All Units'}
                     </td>
 
                     <td className="py-4 px-3">
-                      <span className="font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                      <span className="font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
                         {res.chunk_count} Chunks
                       </span>
                     </td>
@@ -235,7 +341,7 @@ export const ResourceManagementPage: React.FC = () => {
                         </span>
                       )}
                       {res.status === 'Processing' && (
-                        <span className="inline-flex items-center text-blue-700 font-bold bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                        <span className="inline-flex items-center text-indigo-700 font-bold bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200">
                           <Clock className="w-3 h-3 mr-1" /> Processing...
                         </span>
                       )}
@@ -251,7 +357,7 @@ export const ResourceManagementPage: React.FC = () => {
                         <button
                           onClick={() => handleInspectChunks(res)}
                           title="Inspect Extracted Chunks"
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors border border-blue-200 cursor-pointer"
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors border border-indigo-200 cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -279,10 +385,10 @@ export const ResourceManagementPage: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2.5">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100">
                   <UploadCloud className="w-5 h-5" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900">Upload Academic Document</h3>
+                <h3 className="text-base font-bold text-slate-900">Upload Academic Resource</h3>
               </div>
               <button 
                 onClick={() => setShowUploadModal(false)}
@@ -320,7 +426,7 @@ export const ResourceManagementPage: React.FC = () => {
                   required
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
-                  placeholder="e.g. Unit 3 Standard Reference Chapter"
+                  placeholder="e.g. Unit 3 Standard Reference Notes"
                   className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900"
                 />
               </div>
@@ -337,6 +443,7 @@ export const ResourceManagementPage: React.FC = () => {
                     <option value="syllabus">Curriculum Syllabus</option>
                     <option value="previous_paper">Past Question Paper</option>
                     <option value="notes">Lecture Notes</option>
+                    <option value="handout">Course Handout</option>
                   </select>
                 </div>
                 <div>
@@ -347,21 +454,21 @@ export const ResourceManagementPage: React.FC = () => {
                     className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium"
                   >
                     <option value="">General / All Units</option>
-                    {courses.find(c => c.id === uploadCourseId)?.units?.map((u) => (
-                      <option key={u.unit_number} value={u.unit_number}>
-                        Unit {u.unit_number}{u.title ? ` — ${u.title.length > 25 ? u.title.slice(0, 25) + '...' : u.title}` : ''}
-                      </option>
-                    ))}
+                    <option value="1">Unit 1</option>
+                    <option value="2">Unit 2</option>
+                    <option value="3">Unit 3</option>
+                    <option value="4">Unit 4</option>
+                    <option value="5">Unit 5</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Select File (.PDF, .DOCX, .TXT)</label>
+                <label className="block font-semibold text-slate-700 mb-1">Select File (PDF, PPT, PPTX, DOC, DOCX, TXT)</label>
                 <input
                   type="file"
                   required
-                  accept=".pdf,.docx,.txt,.doc,.md"
+                  accept=".pdf,.docx,.doc,.txt,.ppt,.pptx,.md"
                   onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
                   className="w-full p-2 border border-slate-300 rounded-xl text-xs bg-slate-50"
                 />
@@ -370,7 +477,7 @@ export const ResourceManagementPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isUploading}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-md shadow-blue-500/20 disabled:opacity-50 transition-all text-xs"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-500/20 disabled:opacity-50 transition-all text-xs"
               >
                 {isUploading ? 'Chunking & Vectorizing...' : 'Upload & Process with RAG'}
               </button>
@@ -405,7 +512,7 @@ export const ResourceManagementPage: React.FC = () => {
               {inspectResource.chunks?.map((c) => (
                 <div key={c.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                    <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
                       Chunk #{c.chunk_index + 1}
                     </span>
                     <div className="text-slate-500 space-x-2">

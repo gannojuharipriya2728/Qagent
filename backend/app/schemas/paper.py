@@ -24,6 +24,7 @@ class QuestionSchema(BaseModel):
     course_outcome: str
     difficulty: str
     question_type: str
+    sub_questions: Optional[List[Dict[str, Any]]] = None
     source_topics: Optional[List[str]] = []
     source_documents: Optional[List[Dict[str, Any]]] = []
     generation_reasoning: Optional[str] = None
@@ -40,6 +41,7 @@ class QuestionUpdateRequest(BaseModel):
     bloom_level: Optional[str] = None
     course_outcome: Optional[str] = None
     difficulty: Optional[str] = None
+    sub_questions: Optional[List[Dict[str, Any]]] = None
 
 class QuestionRegenerateRequest(BaseModel):
     additional_instructions: Optional[str] = None
@@ -52,11 +54,13 @@ class QuestionPaperResponse(BaseModel):
     course_code: Optional[str] = None
     course_name: Optional[str] = None
     title: str
+    exam_type: Optional[str] = "Semester Examination"
     examination_name: str
     institution_name: str
     duration_minutes: int
     total_marks: int
     instructions: Optional[str] = None
+    section_config: Optional[List[Dict[str, Any]]] = None
     difficulty_distribution: Optional[Dict[str, Any]] = None
     bloom_distribution: Optional[Dict[str, Any]] = None
     syllabus_coverage_score: float

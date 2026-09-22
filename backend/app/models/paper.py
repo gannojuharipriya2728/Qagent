@@ -10,6 +10,7 @@ class QuestionPaper(Base):
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     title = Column(String(255), nullable=False)
+    exam_type = Column(String(100), default="Semester Examination")  # Mid-I, Mid-II, Semester, Lab, Quiz, Custom
     examination_name = Column(String(255), default="Semester End Examination")
     institution_name = Column(String(255), default="Department of Computer Science & Engineering")
     duration_minutes = Column(Integer, default=180)
@@ -41,6 +42,7 @@ class Question(Base):
     course_outcome = Column(String(50), nullable=False)  # "CO1", "CO2", etc.
     difficulty = Column(String(50), default="Medium")  # "Easy", "Medium", "Hard"
     question_type = Column(String(50), default="Descriptive")  # "Short", "Descriptive", "Problem Solving", "Case Study"
+    sub_questions = Column(JSON, nullable=True)  # [{"letter": "a", "text": "...", "marks": 3}, {"letter": "b", "text": "...", "marks": 2}]
     
     # Explainability & RAG Source Provenance
     source_topics = Column(JSON, nullable=True)  # ["B-Trees", "Indexing"]

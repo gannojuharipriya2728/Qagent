@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.core.database import Base
@@ -13,10 +13,13 @@ class Course(Base):
     semester = Column(String(50), default="Semester V")
     academic_year = Column(String(50), default="2025-2026")
     description = Column(Text, nullable=True)
+    faculty_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    analysis_status = Column(String(50), default="Pending")  # "Pending", "Analyzed", "Approved"
+    analysis_data = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
-    units = relationship("Unit", back_populates="course", cascade="all, delete-orphan")
-    course_outcomes = relationship("CourseOutcome", back_populates="course", cascade="all, delete-orphan")
+    units = relationship("Unit", back_populates="course", cascade="all, delete-orphan", order_by="Unit.unit_number")
+    course_outcomes = relationship("CourseOutcome", back_populates="course", cascade="all, delete-orphan", order_by="CourseOutcome.code")
     resources = relationship("Resource", back_populates="course", cascade="all, delete-orphan")
     question_papers = relationship("QuestionPaper", back_populates="course", cascade="all, delete-orphan")
 

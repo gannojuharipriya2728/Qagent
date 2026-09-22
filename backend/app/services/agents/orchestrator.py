@@ -230,15 +230,30 @@ class AgenticGenerationOrchestrator:
         )
 
         # 5. Persist Question Paper to Database
+        evaluated_total = sum(s.questions_to_answer * s.marks_per_question for s in request.sections)
+        
+        # Build dynamic instruction list if empty
+        dynamic_instructions = request.instructions
+        if not dynamic_instructions:
+            inst_lines = []
+            for s in request.sections:
+                if s.total_questions > s.questions_to_answer:
+                    inst_lines.append(f"{s.name}: Answer any {s.questions_to_answer} questions out of {s.total_questions}. Each question carries {s.marks_per_question} marks.")
+                else:
+                    inst_lines.append(f"{s.name}: Answer all {s.total_questions} questions. Each question carries {s.marks_per_question} marks.")
+            dynamic_instructions = "\n".join(inst_lines)
+
         paper = QuestionPaper(
             course_id=course.id,
             created_by=user_id,
             title=request.title,
+            exam_type=getattr(request, "exam_type", "Semester Examination"),
             examination_name=request.examination_name,
             institution_name=request.institution_name,
             duration_minutes=request.duration_minutes,
-            total_marks=request.total_marks,
-            instructions=request.instructions,
+            total_marks=evaluated_total if evaluated_total > 0 else request.total_marks,
+            section_config=[s.model_dump() for s in request.sections],
+            instructions=dynamic_instructions,
             difficulty_distribution=request.difficulty_distribution,
             bloom_distribution=request.bloom_distribution,
             syllabus_coverage_score=overall_coverage,
@@ -263,6 +278,7 @@ class AgenticGenerationOrchestrator:
                 course_outcome=item.get("course_outcome") or slot.course_outcome,
                 difficulty=item.get("difficulty") or slot.difficulty,
                 question_type=slot.question_type,
+                sub_questions=item.get("sub_questions"),
                 source_topics=item.get("source_topics", []),
                 source_documents=item.get("source_documents", []),
                 generation_reasoning=item.get("reasoning", ""),

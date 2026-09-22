@@ -7,11 +7,13 @@ from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.models.user import User
 from app.schemas.auth import UserCreate, UserLogin, TokenResponse, UserResponse
+from app.schemas.academic import FacultyProfileResponse, FacultyProfileUpdate, CourseResponse
 from app.api.deps import get_current_user
 
 logger = logging.getLogger("qagent.auth")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+faculty_router = APIRouter(prefix="/faculty", tags=["Faculty"])
 
 @router.post("/register", response_model=TokenResponse)
 async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -86,3 +88,63 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user)
+
+@router.get("/faculty/profile", response_model=FacultyProfileResponse)
+@faculty_router.get("/profile", response_model=FacultyProfileResponse)
+async def get_faculty_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.academic import Course
+    from sqlalchemy.orm import selectinload
+    stmt = select(Course).options(
+        selectinload(Course.units),
+        selectinload(Course.course_outcomes)
+    ).where(
+        (Course.faculty_id == current_user.id) | (Course.department == current_user.department)
+    ).order_by(Course.code)
+    courses = (await db.execute(stmt)).scalars().all()
+    
+    return FacultyProfileResponse(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        department=current_user.department or "Computer Science & Engineering",
+        role=current_user.role or "Faculty",
+        assigned_courses=[CourseResponse.model_validate(c) for c in courses]
+    )
+
+@router.put("/faculty/profile", response_model=FacultyProfileResponse)
+@faculty_router.put("/profile", response_model=FacultyProfileResponse)
+async def update_faculty_profile(
+    profile_in: FacultyProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.academic import Course
+    from sqlalchemy.orm import selectinload
+    
+    if profile_in.full_name is not None:
+        current_user.full_name = profile_in.full_name.strip()
+    if profile_in.department is not None:
+        current_user.department = profile_in.department.strip()
+    
+    await db.commit()
+    await db.refresh(current_user)
+
+    stmt = select(Course).options(
+        selectinload(Course.units),
+        selectinload(Course.course_outcomes)
+    ).where(
+        (Course.faculty_id == current_user.id) | (Course.department == current_user.department)
+    ).order_by(Course.code)
+    courses = (await db.execute(stmt)).scalars().all()
+
+    return FacultyProfileResponse(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        department=current_user.department or "Computer Science & Engineering",
+        role=current_user.role or "Faculty",
+        assigned_courses=[CourseResponse.model_validate(c) for c in courses]
+    )

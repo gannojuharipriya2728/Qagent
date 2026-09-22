@@ -32,6 +32,7 @@ class OpenRouterProvider(BaseLLMProvider):
             raise ValueError(
                 "OPENROUTER_API_KEY is required for OpenRouterProvider."
             )
+        self.provider_name = "openrouter"
         self.api_key = resolved_api_key.strip()
         self.model = model or settings.OPENROUTER_MODEL
         self.base_url = (base_url or settings.OPENROUTER_BASE_URL).rstrip("/")

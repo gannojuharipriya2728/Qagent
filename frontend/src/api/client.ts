@@ -29,6 +29,27 @@ export interface User {
   is_active: boolean;
 }
 
+export interface FacultyProfile {
+  id: number;
+  email: string;
+  full_name: string;
+  department: string;
+  role: string;
+  faculty_id?: string;
+  courses_assigned: {
+    id: number;
+    code: string;
+    name: string;
+    semester: string;
+    academic_year: string;
+  }[];
+}
+
+export interface FacultyProfileUpdate {
+  full_name?: string;
+  department?: string;
+}
+
 export interface Unit {
   id?: number;
   unit_number: number;
@@ -66,6 +87,15 @@ export interface CourseCreate {
   course_outcomes?: CourseOutcomeCreate[];
 }
 
+export interface CourseUpdate {
+  code?: string;
+  name?: string;
+  department?: string;
+  semester?: string;
+  academic_year?: string;
+  description?: string;
+}
+
 export interface Course {
   id: number;
   code: string;
@@ -74,8 +104,53 @@ export interface Course {
   semester: string;
   academic_year: string;
   description?: string;
+  faculty_id?: number;
+  analysis_status?: string;
+  analysis_data?: any;
   units: Unit[];
   course_outcomes: CourseOutcome[];
+}
+
+export interface CourseAnalysisResponse {
+  course_id: number;
+  course_code: string;
+  course_name: string;
+  department: string;
+  semester: string;
+  academic_year: string;
+  analysis_status: string;
+  units: {
+    unit_number: number;
+    title: string;
+    topics: string;
+    key_concepts?: string[];
+    source_documents?: string[];
+  }[];
+  course_outcomes: {
+    code: string;
+    description: string;
+    target_bloom_level: string;
+    source_confidence?: string;
+  }[];
+  bloom_recommendations: {
+    level: string;
+    recommended_percentage: number;
+  }[];
+  topic_unit_mapping?: Record<string, string[]>;
+  co_unit_mapping?: Record<string, number[]>;
+}
+
+export interface CourseAnalysisApprovalRequest {
+  units: {
+    unit_number: number;
+    title: string;
+    topics: string;
+  }[];
+  course_outcomes: {
+    code: string;
+    description: string;
+    target_bloom_level?: string;
+  }[];
 }
 
 export interface ResourceChunk {
@@ -104,12 +179,21 @@ export interface Resource {
   chunks?: ResourceChunk[];
 }
 
+export interface SubQuestionPart {
+  part: string;
+  marks: number;
+}
+
 export interface SectionRule {
   name: string;
   total_questions: number;
   questions_to_answer: number;
   marks_per_question: number;
   question_type: string;
+  internal_choice?: boolean;
+  has_sub_questions?: boolean;
+  sub_question_parts?: SubQuestionPart[];
+  evaluated_marks?: number;
   unit_distribution?: number[];
   bloom_levels?: string[];
 }
@@ -118,6 +202,7 @@ export interface GenerationRequest {
   course_id: number;
   title: string;
   examination_name: string;
+  exam_type?: string;
   institution_name: string;
   duration_minutes: number;
   total_marks: number;
@@ -162,6 +247,7 @@ export interface Question {
   course_outcome: string;
   difficulty: string;
   question_type: string;
+  sub_questions?: { part: string; question_text: string; marks: number }[];
   source_topics: string[];
   source_documents: SourceDocument[];
   generation_reasoning?: string;
@@ -177,6 +263,7 @@ export interface QuestionPaper {
   course_name?: string;
   title: string;
   examination_name: string;
+  exam_type?: string;
   institution_name: string;
   duration_minutes: number;
   total_marks: number;
