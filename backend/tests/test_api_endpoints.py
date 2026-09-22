@@ -268,4 +268,64 @@ async def test_authenticated_faculty_profile_flows():
         assert diag_data["database_connected"] is True
 
 
+@pytest.mark.asyncio
+async def test_faculty_profile_with_null_and_assigned_faculty_id_courses():
+    from app.core.database import AsyncSessionLocal
+    from app.models.user import User
+    from app.models.academic import Course
+    from app.core.security import get_password_hash, create_access_token
+
+    uid = uuid.uuid4().hex[:8]
+    async with AsyncSessionLocal() as session:
+        faculty1 = User(
+            email=f"fac1_{uid}@college.edu",
+            full_name="Faculty One",
+            hashed_password=get_password_hash("Pass123!"),
+            role="Faculty",
+            department="Computer Science & Engineering",
+            is_active=True
+        )
+        faculty2 = User(
+            email=f"fac2_{uid}@college.edu",
+            full_name="Faculty Two",
+            hashed_password=get_password_hash("Pass123!"),
+            role="Faculty",
+            department="Electrical Engineering",
+            is_active=True
+        )
+        session.add_all([faculty1, faculty2])
+        await session.commit()
+        await session.refresh(faculty1)
+        await session.refresh(faculty2)
+
+        # 1. Course with faculty_id matching faculty1
+        c1 = Course(code=f"C1_{uid}", name="Assigned Course", department="Computer Science & Engineering", faculty_id=faculty1.id)
+        # 2. Course with NULL faculty_id but matching faculty1's department
+        c2 = Course(code=f"C2_{uid}", name="Dept Course No Faculty", department="Computer Science & Engineering", faculty_id=None)
+        # 3. Course with NULL faculty_id and different department
+        c3 = Course(code=f"C3_{uid}", name="Other Dept Course", department="Electrical Engineering", faculty_id=None)
+        # 4. Course with faculty_id assigned to faculty2
+        c4 = Course(code=f"C4_{uid}", name="Other Faculty Course", department="Mechanical", faculty_id=faculty2.id)
+        
+        session.add_all([c1, c2, c3, c4])
+        await session.commit()
+
+        token1 = create_access_token(subject=faculty1.id)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get(
+            "/api/faculty/profile",
+            headers={"Authorization": f"Bearer {token1}"}
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        codes = [c["code"] for c in data["assigned_courses"]]
+        assert f"C1_{uid}" in codes  # explicitly assigned
+        assert f"C2_{uid}" in codes  # department match with NULL faculty_id
+        assert f"C3_{uid}" not in codes  # different department & NULL faculty_id
+        assert f"C4_{uid}" not in codes  # assigned to another faculty
+
+
+
 

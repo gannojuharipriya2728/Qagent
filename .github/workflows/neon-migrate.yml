@@ -1,6 +1,14 @@
 name: Neon Database Migration
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'alembic/**'
+      - 'backend/app/models/**'
+      - 'backend/app/core/**'
+      - '.github/workflows/neon-migrate.yml'
   workflow_dispatch:
 
 jobs:
