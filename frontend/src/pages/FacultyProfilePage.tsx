@@ -289,18 +289,7 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
-        <div className="flex items-center gap-2 text-slate-600 text-xs">
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          <span>Profile verified? Proceed to your active course workspace to manage resources & generate papers.</span>
-        </div>
-        <button
-          onClick={() => onContinue()}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-semibold shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-0.5"
-        >
-          <span>Continue to Course Workspace</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
     </div>
   );
 };
+

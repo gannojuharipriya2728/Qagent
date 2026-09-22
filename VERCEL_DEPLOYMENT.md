@@ -112,7 +112,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=10080
 # =================================================================
 # CORS Allowed Origins
 # =================================================================
-CORS_ORIGINS=["https://qagent-production-1.onrender.com", "https://qagent-production.onrender.com"]
+CORS_ORIGINS=["https://qagent-frontend-iota.vercel.app", "https://qagent.vercel.app"]
 ```
 
 ---

@@ -145,6 +145,61 @@ class AcademicVectorStore(BaseVectorStore):
         if keys_to_delete:
             self._save_to_disk()
 
+    async def _hydrate_course_chunks_from_db(self, course_id: int):
+        """
+        Dynamically hydrates in-memory vector store from PostgreSQL ResourceChunk records
+        for serverless execution where disk persistence across lambdas is ephemeral.
+        """
+        try:
+            from app.core.database import AsyncSessionLocal
+            from app.models.resource import Resource, ResourceChunk
+            from app.models.academic import Course
+            from sqlalchemy import select
+
+            async with AsyncSessionLocal() as session:
+                stmt = (
+                    select(ResourceChunk, Resource, Course.code)
+                    .join(Resource, ResourceChunk.resource_id == Resource.id)
+                    .outerjoin(Course, Resource.course_id == Course.id)
+                    .where(Resource.course_id == course_id)
+                )
+                results = (await session.execute(stmt)).all()
+                if not results:
+                    return
+
+                contents_to_embed = []
+                metas_to_add = []
+                ids_to_add = []
+                for chunk, res, course_code in results:
+                    doc_id = f"res_{res.id}_chunk_{chunk.chunk_index}"
+                    if doc_id not in self.documents:
+                        contents_to_embed.append(chunk.content)
+                        metas_to_add.append({
+                            "resource_id": res.id,
+                            "course_id": res.course_id,
+                            "course_code": course_code or "",
+                            "file_name": res.file_name,
+                            "document_type": res.document_type,
+                            "unit_number": chunk.unit_number,
+                            "page_number": chunk.page_number,
+                            "topic": chunk.topic,
+                            "chunk_index": chunk.chunk_index
+                        })
+                        ids_to_add.append(doc_id)
+
+                if contents_to_embed:
+                    vectors = await embedding_engine.embed_documents(contents_to_embed)
+                    for doc_id, content, meta, vec in zip(ids_to_add, contents_to_embed, metas_to_add, vectors):
+                        self.documents[doc_id] = VectorDocument(
+                            doc_id=doc_id,
+                            content=content,
+                            vector=vec,
+                            metadata=meta
+                        )
+        except Exception:
+            # Non-blocking fallback if DB is unreachable or during offline unit testing
+            pass
+
     async def similarity_search(
         self,
         query: str,
@@ -153,6 +208,15 @@ class AcademicVectorStore(BaseVectorStore):
         unit_number: Optional[int] = None,
         document_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
+        # In serverless environments, hydrate chunks from PostgreSQL if not present in memory
+        if course_id is not None:
+            has_course_docs = any(
+                str(doc.metadata.get("course_id", "")).strip() == str(course_id).strip()
+                for doc in self.documents.values()
+            )
+            if not has_course_docs:
+                await self._hydrate_course_chunks_from_db(course_id)
+
         if not self.documents:
             return []
 

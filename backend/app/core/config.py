@@ -157,8 +157,7 @@ class Settings(BaseSettings):
         
         default_prod_origins = [
             "https://qagent-frontend-iota.vercel.app",
-            "https://qagent-production-1.onrender.com",
-            "https://qagent-production.onrender.com"
+            "https://qagent.vercel.app"
         ]
         
         if not origins:
@@ -192,7 +191,7 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
     OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
     OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    OPENROUTER_SITE_URL: str = os.getenv("OPENROUTER_SITE_URL", "https://qagent-production.onrender.com")
+    OPENROUTER_SITE_URL: str = os.getenv("OPENROUTER_SITE_URL", "https://qagent.vercel.app")
     OPENROUTER_APP_NAME: str = os.getenv("OPENROUTER_APP_NAME", "QAgent")
     
     # Ollama Local Provider Settings (Optional)

@@ -1,7 +1,13 @@
 import axios from 'axios';
+ 
+const envApiUrl = import.meta.env.VITE_API_BASE_URL;
+const RAW_API_URL = typeof envApiUrl === 'string' && envApiUrl.trim() !== ''
+  ? envApiUrl.trim()
+  : (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
-const RAW_API_URL = import.meta.env.VITE_API_BASE_URL || 'https://qagent-production.onrender.com';
-export const API_BASE_URL = RAW_API_URL.endsWith('/api') ? RAW_API_URL : `${RAW_API_URL.replace(/\/$/, '')}/api`;
+export const API_BASE_URL = RAW_API_URL.endsWith('/api')
+  ? RAW_API_URL
+  : (RAW_API_URL ? `${RAW_API_URL.replace(/\/$/, '')}/api` : '/api');
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

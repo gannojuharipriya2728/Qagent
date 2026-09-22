@@ -73,7 +73,7 @@ LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-your-live-production-key
 OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_SITE_URL=https://qagent-production.onrender.com
+OPENROUTER_SITE_URL=https://qagent.vercel.app
 OPENROUTER_APP_NAME=QAgent
 
 # Alternative Direct NVIDIA NIM Provider (Optional)
@@ -88,7 +88,7 @@ SECRET_KEY=generate-a-64-character-random-hex-string-using-openssl-rand-hex-32
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 
 # CORS Allowed Origins
-CORS_ORIGINS=["https://qagent-production-1.onrender.com", "https://qagent-production.onrender.com"]
+CORS_ORIGINS=["https://qagent-frontend-iota.vercel.app", "https://qagent.vercel.app"]
 ```
 
 ---
