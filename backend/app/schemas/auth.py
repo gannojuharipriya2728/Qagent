@@ -6,6 +6,7 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: str
     department: Optional[str] = "Computer Science & Engineering"
+    semester: Optional[str] = "Semester V"
     role: Optional[str] = "faculty"
 
 class UserCreate(UserBase):

@@ -73,6 +73,8 @@ export const App: React.FC = () => {
             onGetStarted={() => handleNavigate(currentUser ? 'profile' : 'login')}
             onExploreDemo={() => handleNavigate(currentUser ? 'profile' : 'login')}
             onQuickLogin={handleLoginSuccess}
+            onNavigateLogin={() => handleNavigate('login')}
+            onNavigateRegister={() => handleNavigate('register')}
           />
         )}
 

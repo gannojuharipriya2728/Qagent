@@ -25,6 +25,7 @@ export interface User {
   email: string;
   full_name: string;
   department: string;
+  semester?: string;
   role: string;
   is_active: boolean;
 }
@@ -34,6 +35,7 @@ export interface FacultyProfile {
   email: string;
   full_name: string;
   department: string;
+  semester?: string;
   role: string;
   faculty_id?: string;
   courses_assigned: {
@@ -48,7 +50,10 @@ export interface FacultyProfile {
 export interface FacultyProfileUpdate {
   full_name?: string;
   department?: string;
+  semester?: string;
 }
+
+export type Subject = Course;
 
 export interface Unit {
   id?: number;

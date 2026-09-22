@@ -11,5 +11,6 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), default="faculty", nullable=False)  # "admin", "faculty", "reviewer"
     department = Column(String(100), default="Computer Science & Engineering")
+    semester = Column(String(50), default="Semester V", nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

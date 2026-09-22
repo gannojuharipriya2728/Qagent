@@ -39,6 +39,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
             email=user_in.email,
             full_name=user_in.full_name,
             department=user_in.department,
+            semester=user_in.semester or "Semester V",
             role=user_in.role or "faculty",
             hashed_password=hashed_pwd,
             is_active=True
@@ -145,6 +146,7 @@ async def get_faculty_profile(
             email=current_user.email,
             full_name=current_user.full_name or "Faculty Member",
             department=current_user.department or "Computer Science & Engineering",
+            semester=getattr(current_user, "semester", "Semester V") or "Semester V",
             role=current_user.role or "Faculty",
             faculty_id=f"FAC-{current_user.id:04d}",
             assigned_courses=validated_courses,
@@ -178,6 +180,8 @@ async def update_faculty_profile(
             current_user.full_name = profile_in.full_name.strip()
         if profile_in.department is not None:
             current_user.department = profile_in.department.strip()
+        if profile_in.semester is not None:
+            current_user.semester = profile_in.semester.strip()
         
         await db.commit()
         await db.refresh(current_user)
@@ -218,6 +222,7 @@ async def update_faculty_profile(
             email=current_user.email,
             full_name=current_user.full_name or "Faculty Member",
             department=current_user.department or "Computer Science & Engineering",
+            semester=getattr(current_user, "semester", "Semester V") or "Semester V",
             role=current_user.role or "Faculty",
             faculty_id=f"FAC-{current_user.id:04d}",
             assigned_courses=validated_courses,

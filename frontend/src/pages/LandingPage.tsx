@@ -8,6 +8,8 @@ interface LandingPageProps {
   onGetStarted: () => void;
   onExploreDemo: () => void;
   onQuickLogin?: (token: string, user: User) => void;
+  onNavigateLogin?: () => void;
+  onNavigateRegister?: () => void;
 }
 
 const SAMPLES = [
@@ -34,7 +36,13 @@ const SAMPLES = [
   }
 ];
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExploreDemo, onQuickLogin }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ 
+  onGetStarted, 
+  onExploreDemo, 
+  onQuickLogin,
+  onNavigateLogin,
+  onNavigateRegister 
+}) => {
   const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [qIndex, setQIndex] = useState(0);
 
@@ -91,20 +99,38 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onExplor
           {/* Bold CTAs */}
           <div className="flex flex-wrap items-center justify-center gap-3.5 pt-2">
             <button
-              onClick={handleInstantDemo}
-              disabled={isDemoLoading}
-              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 flex items-center space-x-2 transition-transform hover:scale-105 cursor-pointer"
-            >
-              <Zap className="w-4 h-4 fill-slate-950 text-slate-950" />
-              <span>{isDemoLoading ? 'Entering...' : '⚡ 1-Click Demo'}</span>
-            </button>
-
-            <button
               onClick={onGetStarted}
               className="px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-500/25 flex items-center space-x-2 transition-transform hover:scale-105 cursor-pointer"
             >
-              <span>Launch Paper Wizard</span>
+              <span>Get Started</span>
               <ArrowRight className="w-4 h-4" />
+            </button>
+
+            {onNavigateLogin && (
+              <button
+                onClick={onNavigateLogin}
+                className="px-6 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 shadow-md flex items-center space-x-2 transition-transform hover:scale-105 cursor-pointer"
+              >
+                <span>Login</span>
+              </button>
+            )}
+
+            {onNavigateRegister && (
+              <button
+                onClick={onNavigateRegister}
+                className="px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md shadow-indigo-500/25 flex items-center space-x-2 transition-transform hover:scale-105 cursor-pointer"
+              >
+                <span>Sign Up</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleInstantDemo}
+              disabled={isDemoLoading}
+              className="px-5 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 flex items-center space-x-2 transition-transform hover:scale-105 cursor-pointer"
+            >
+              <Zap className="w-4 h-4 fill-slate-950 text-slate-950" />
+              <span>{isDemoLoading ? 'Entering...' : '⚡ 1-Click Demo'}</span>
             </button>
           </div>
 

@@ -143,10 +143,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               <label className="block text-xs font-bold text-slate-700">Password</label>
               <button
                 type="button"
-                onClick={() => setPassword('FacultyPassword123!')}
-                className="text-[10px] text-blue-600 hover:text-blue-700 font-bold hover:underline cursor-pointer"
+                onClick={() => alert('For password resets or university faculty credentials recovery, please contact your Academic Administrator or use the sample instant login.')}
+                className="text-[10px] text-slate-500 hover:text-blue-600 font-bold hover:underline cursor-pointer"
               >
-                Use sample password
+                Forgot Password?
               </button>
             </div>
             <input

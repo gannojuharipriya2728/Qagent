@@ -26,14 +26,25 @@ export const ResourceManagementPage: React.FC<ResourceManagementPageProps> = ({
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadCourseId, setUploadCourseId] = useState<number | ''>('');
   const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadDocType, setUploadDocType] = useState('textbook');
+  const [uploadDocType, setUploadDocType] = useState('syllabus');
   const [uploadUnit, setUploadUnit] = useState<number | ''>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStepIndex, setUploadStepIndex] = useState(0);
   const [uploadError, setUploadError] = useState('');
 
   // Chunk Inspect Modal
   const [inspectResource, setInspectResource] = useState<Resource | null>(null);
+
+  const UPLOAD_STEPS = [
+    'Uploading document...',
+    'Processing PDF layout & pages...',
+    'Extracting academic content...',
+    'Creating semantic chunks...',
+    'Generating vector embeddings...',
+    'Analyzing syllabus units & COs...',
+    'Completed & Indexed!'
+  ];
 
   useEffect(() => {
     loadData();
@@ -74,6 +85,8 @@ export const ResourceManagementPage: React.FC<ResourceManagementPageProps> = ({
     }
     if (selectedCourseId) {
       setUploadCourseId(selectedCourseId);
+    } else if (courses.length > 0) {
+      setUploadCourseId(courses[0].id);
     }
     setShowUploadModal(true);
   };
@@ -83,29 +96,44 @@ export const ResourceManagementPage: React.FC<ResourceManagementPageProps> = ({
     if (!uploadFile || !uploadCourseId) return;
 
     setIsUploading(true);
+    setUploadStepIndex(0);
     setUploadError('');
+
+    const currentCourse = courses.find(c => c.id === uploadCourseId);
+    const targetTitle = uploadTitle.trim() || `${currentCourse?.name || 'Subject'} - ${uploadDocType.toUpperCase()}`;
 
     const formData = new FormData();
     formData.append('course_id', String(uploadCourseId));
-    formData.append('title', uploadTitle || uploadFile.name);
+    formData.append('title', targetTitle);
     formData.append('document_type', uploadDocType);
     if (uploadUnit !== '') {
       formData.append('unit_number', String(uploadUnit));
     }
     formData.append('file', uploadFile);
 
+    // Progress interval animation
+    const progressTimer = setInterval(() => {
+      setUploadStepIndex(prev => (prev < UPLOAD_STEPS.length - 2 ? prev + 1 : prev));
+    }, 600);
+
     try {
       await api.post('/resources/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setShowUploadModal(false);
-      setUploadFile(null);
-      setUploadTitle('');
-      loadData();
+      clearInterval(progressTimer);
+      setUploadStepIndex(UPLOAD_STEPS.length - 1);
+      
+      setTimeout(() => {
+        setShowUploadModal(false);
+        setUploadFile(null);
+        setUploadTitle('');
+        setIsUploading(false);
+        loadData();
+      }, 700);
     } catch (err: any) {
-      setUploadError(err.response?.data?.detail || 'Upload and chunking failed. Please ensure file is valid.');
-    } finally {
+      clearInterval(progressTimer);
       setIsUploading(false);
+      setUploadError(err.response?.data?.detail || 'Upload and chunking failed. Please ensure file is valid.');
     }
   };
 
@@ -379,7 +407,7 @@ export const ResourceManagementPage: React.FC<ResourceManagementPageProps> = ({
         </div>
       </div>
 
-      {/* Upload Document Modal */}
+      {/* Upload Document / Syllabus Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-5">
@@ -388,100 +416,161 @@ export const ResourceManagementPage: React.FC<ResourceManagementPageProps> = ({
                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100">
                   <UploadCloud className="w-5 h-5" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900">Upload Academic Resource</h3>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Upload Syllabus & Resources</h3>
+                  <p className="text-[11px] text-slate-500">Autonomous RAG indexing and curriculum analysis</p>
+                </div>
               </div>
-              <button 
-                onClick={() => setShowUploadModal(false)}
-                className="text-slate-400 hover:text-slate-700 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {!isUploading && (
+                <button 
+                  onClick={() => setShowUploadModal(false)}
+                  className="text-slate-400 hover:text-slate-700 p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
             {uploadError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
-                {uploadError}
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{uploadError}</span>
               </div>
             )}
 
-            <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Target Course</label>
-                <select
-                  value={uploadCourseId}
-                  onChange={(e) => setUploadCourseId(Number(e.target.value))}
-                  required
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium"
+            {isUploading ? (
+              <div className="p-5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-4 text-xs">
+                <div className="flex items-center space-x-2 text-indigo-700 font-extrabold">
+                  <Sparkles className="w-4 h-4 animate-spin text-indigo-600" />
+                  <span>Syllabus RAG Processing Pipeline</span>
+                </div>
+
+                <div className="space-y-2">
+                  {UPLOAD_STEPS.map((stepName, sIdx) => {
+                    const isDone = uploadStepIndex > sIdx;
+                    const isCurrent = uploadStepIndex === sIdx;
+                    return (
+                      <div 
+                        key={sIdx}
+                        className={`flex items-center space-x-2.5 p-2 rounded-xl text-xs font-semibold transition-all ${
+                          isDone 
+                            ? 'bg-emerald-50 text-emerald-800' 
+                            : isCurrent 
+                            ? 'bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200' 
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                          isDone 
+                            ? 'bg-emerald-600 text-white' 
+                            : isCurrent 
+                            ? 'bg-indigo-600 text-white animate-pulse' 
+                            : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {isDone ? '✓' : sIdx + 1}
+                        </div>
+                        <span className="truncate">{stepName}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[11px] text-slate-500 text-center italic">
+                  Autonomous agents are parsing sections, extracting topics, and creating vector embeddings...
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs">
+                {/* Subject Selector */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Subject</label>
+                  <select
+                    value={uploadCourseId}
+                    onChange={(e) => setUploadCourseId(Number(e.target.value))}
+                    required
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold"
+                  >
+                    {courses.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Subject ID Display */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Subject ID</label>
+                  <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-800 font-mono font-bold">
+                    {courses.find(c => c.id === uploadCourseId)?.code || 'AIML601'}
+                  </div>
+                </div>
+
+                {/* What are you uploading? */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">What are you uploading?</label>
+                    <select
+                      value={uploadDocType}
+                      onChange={(e) => setUploadDocType(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold"
+                    >
+                      <option value="syllabus">Syllabus PDF</option>
+                      <option value="textbook">Textbook Chapter</option>
+                      <option value="previous_paper">Previous Question Paper</option>
+                      <option value="notes">Lecture Notes</option>
+                      <option value="handout">Course Handout</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Target Unit Scope</label>
+                    <select
+                      value={uploadUnit}
+                      onChange={(e) => setUploadUnit(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold"
+                    >
+                      <option value="">Full Syllabus / All Units</option>
+                      <option value="1">Unit 1</option>
+                      <option value="2">Unit 2</option>
+                      <option value="3">Unit 3</option>
+                      <option value="4">Unit 4</option>
+                      <option value="5">Unit 5</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Title */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Document Title</label>
+                  <input
+                    type="text"
+                    value={uploadTitle}
+                    onChange={(e) => setUploadTitle(e.target.value)}
+                    placeholder="e.g. Official University Syllabus 2026"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium"
+                  />
+                </div>
+
+                {/* Upload File */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Upload PDF / Document</label>
+                  <input
+                    type="file"
+                    required
+                    accept=".pdf,.docx,.doc,.txt,.ppt,.pptx,.md"
+                    onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
+                    className="w-full p-2 border border-slate-300 rounded-xl text-xs bg-slate-50 cursor-pointer"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isUploading}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-500/20 disabled:opacity-50 transition-all text-xs cursor-pointer flex items-center justify-center space-x-2"
                 >
-                  {courses.map(c => (
-                    <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Document Title</label>
-                <input
-                  type="text"
-                  required
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                  placeholder="e.g. Unit 3 Standard Reference Notes"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Document Type</label>
-                  <select
-                    value={uploadDocType}
-                    onChange={(e) => setUploadDocType(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium"
-                  >
-                    <option value="textbook">Textbook Chapter</option>
-                    <option value="syllabus">Curriculum Syllabus</option>
-                    <option value="previous_paper">Past Question Paper</option>
-                    <option value="notes">Lecture Notes</option>
-                    <option value="handout">Course Handout</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Target Unit</label>
-                  <select
-                    value={uploadUnit}
-                    onChange={(e) => setUploadUnit(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium"
-                  >
-                    <option value="">General / All Units</option>
-                    <option value="1">Unit 1</option>
-                    <option value="2">Unit 2</option>
-                    <option value="3">Unit 3</option>
-                    <option value="4">Unit 4</option>
-                    <option value="5">Unit 5</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Select File (PDF, PPT, PPTX, DOC, DOCX, TXT)</label>
-                <input
-                  type="file"
-                  required
-                  accept=".pdf,.docx,.doc,.txt,.ppt,.pptx,.md"
-                  onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
-                  className="w-full p-2 border border-slate-300 rounded-xl text-xs bg-slate-50"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isUploading}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-500/20 disabled:opacity-50 transition-all text-xs"
-              >
-                {isUploading ? 'Chunking & Vectorizing...' : 'Upload & Process with RAG'}
-              </button>
-            </form>
+                  <UploadCloud className="w-4 h-4" />
+                  <span>Upload Syllabus</span>
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -92,6 +92,7 @@ class FacultyProfileResponse(BaseModel):
     email: str
     full_name: str
     department: str
+    semester: Optional[str] = "Semester V"
     role: str
     faculty_id: Optional[str] = None
     assigned_courses: List[CourseResponse] = []
@@ -103,3 +104,4 @@ class FacultyProfileResponse(BaseModel):
 class FacultyProfileUpdate(BaseModel):
     full_name: Optional[str] = None
     department: Optional[str] = None
+    semester: Optional[str] = None

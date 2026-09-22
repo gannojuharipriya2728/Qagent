@@ -3,8 +3,12 @@ import uuid
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 
+from app.core.database import engine, Base
+
 @pytest.mark.asyncio
 async def test_health_endpoints():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Main health
@@ -34,10 +38,11 @@ async def test_health_endpoints():
         assert "registered_routes" in config_data
 
         # 4. Debug register trace test
+        unique_email = f"debug.diag.{uuid.uuid4().hex[:8]}@example.com"
         trace_resp = await client.post(
             "/api/debug/register",
             json={
-                "email": "debug.test.diagnostic@example.com",
+                "email": unique_email,
                 "password": "DebugPassword123!",
                 "full_name": "Diagnostic User",
                 "department": "CSE",
@@ -49,8 +54,6 @@ async def test_health_endpoints():
         assert trace_data["stage"] == "completed"
         assert trace_data["status"] == "success"
         assert trace_data["user_insert_ok"] is True
-
-from app.core.database import engine, Base
 
 @pytest.mark.asyncio
 async def test_auth_and_courses_flow():

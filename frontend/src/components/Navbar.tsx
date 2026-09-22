@@ -44,11 +44,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const navItems = [
-    { id: 'profile', label: 'Faculty Profile', icon: ShieldCheck },
-    { id: 'dashboard', label: 'Course Workspace', icon: BookOpen },
-    { id: 'resources', label: 'Curriculum & RAG', icon: UploadCloud },
+    { id: 'dashboard', label: 'Dashboard', icon: BookOpen },
+    { id: 'profile', label: 'Profile', icon: ShieldCheck },
+    { id: 'resources', label: 'Syllabus Upload', icon: UploadCloud },
     { id: 'generate', label: 'Generate Paper', icon: Sparkles, highlight: true },
-    { id: 'papers', label: 'Exam Archive', icon: FileText },
+    { id: 'papers', label: 'Generated Papers', icon: FileText },
   ];
 
   if (currentUser?.role === 'admin') {

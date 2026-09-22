@@ -27,6 +27,7 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
   const [editForm, setEditForm] = useState<FacultyProfileUpdate>({
     full_name: '',
     department: '',
+    semester: 'Semester V'
   });
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
@@ -42,6 +43,7 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
       setEditForm({
         full_name: res.data.full_name,
         department: res.data.department || '',
+        semester: res.data.semester || 'Semester V',
       });
       setError(null);
     } catch (err: any) {
@@ -105,10 +107,10 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
             Verified Faculty Profile
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
-            Faculty & Academic Profile
+            Faculty Profile & Academic Subjects
           </h1>
           <p className="text-indigo-200 text-sm max-w-xl">
-            Please verify your academic profile and assigned courses below before proceeding to the Course Workspace.
+            View and manage your academic profile, active teaching semester, and assigned subjects.
           </p>
         </div>
       </div>
@@ -137,7 +139,7 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
           </div>
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 rounded-xl text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 hover:border-indigo-400 text-slate-700 hover:text-indigo-700 rounded-xl text-sm font-medium transition-colors cursor-pointer"
           >
             <Edit3 className="w-4 h-4" />
             {isEditing ? 'Cancel Edit' : 'Edit Profile'}
@@ -148,7 +150,7 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
           <form onSubmit={handleUpdate} className="py-6 space-y-4 max-w-lg">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Full Name
+                Faculty Name
               </label>
               <input
                 type="text"
@@ -158,36 +160,50 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-900"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Department
-              </label>
-              <input
-                type="text"
-                required
-                value={editForm.department}
-                onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-900"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Department
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.department}
+                  onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Semester
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.semester || 'Semester V'}
+                  onChange={(e) => setEditForm({ ...editForm, semester: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-900"
+                />
+              </div>
             </div>
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-indigo-200 transition-colors"
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-indigo-200 transition-colors cursor-pointer"
               >
                 Save Changes
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors"
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors cursor-pointer"
               >
                 Cancel
               </button>
             </div>
           </form>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-6">
             <div className="space-y-1">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Building className="w-3.5 h-3.5" /> Department
@@ -196,9 +212,15 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
             </div>
             <div className="space-y-1">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5" /> Email Address
+                <Layers className="w-3.5 h-3.5" /> Active Semester
               </span>
-              <p className="text-sm font-medium text-slate-800">{profile.email}</p>
+              <p className="text-sm font-medium text-slate-800">{profile.semester || 'Semester V'}</p>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5" /> Faculty Email
+              </span>
+              <p className="text-sm font-medium text-slate-800 truncate">{profile.email}</p>
             </div>
             <div className="space-y-1">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -206,21 +228,15 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
               </span>
               <p className="text-sm font-medium text-slate-800">{profile.faculty_id || `FAC-${profile.id.toString().padStart(4, '0')}`}</p>
             </div>
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5" /> Academic Role
-              </span>
-              <p className="text-sm font-medium text-slate-800">{profile.role || 'Faculty Member'}</p>
-            </div>
           </div>
         )}
 
-        {/* Assigned Courses Section */}
+        {/* Assigned Subjects Section */}
         <div className="pt-6 border-t border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-indigo-600" />
-              Courses Assigned ({profile.courses_assigned?.length || 0})
+              My Subjects ({profile.courses_assigned?.length || 0})
             </h3>
           </div>
 
@@ -233,12 +249,17 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
                   className="p-4 rounded-2xl border border-slate-200/80 hover:border-indigo-300 bg-slate-50/50 hover:bg-indigo-50/30 transition-all cursor-pointer group flex items-center justify-between"
                 >
                   <div>
-                    <span className="text-xs font-mono font-bold text-indigo-600">{course.code}</span>
-                    <h4 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-900 transition-colors">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                        {course.code}
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-semibold">{course.semester}</span>
+                    </div>
+                    <h4 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-900 transition-colors mt-1">
                       {course.name}
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Sem: {course.semester} • AY: {course.academic_year}
+                      Dept: {profile.department} • AY: {course.academic_year || '2026-27'}
                     </p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
@@ -247,8 +268,8 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
             </div>
           ) : (
             <div className="text-center py-8 px-4 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
-              <p className="text-sm text-slate-500 mb-2">No courses assigned yet.</p>
-              <p className="text-xs text-slate-400">You can create a new course in the Course Workspace.</p>
+              <p className="text-sm text-slate-500 mb-2">No subjects assigned yet.</p>
+              <p className="text-xs text-slate-400">You can create or configure subjects in the Dashboard.</p>
             </div>
           )}
         </div>
@@ -256,6 +277,18 @@ export const FacultyProfilePage: React.FC<FacultyProfilePageProps> = ({ onContin
 
       {/* Action Footer */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-2 text-slate-600 text-xs">
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <span>Profile verified? Proceed to your active dashboard to upload syllabi and generate examination papers.</span>
+        </div>
+        <button
+          onClick={() => onContinue()}
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-semibold shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+        >
+          <span>Continue to Dashboard</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
         <div className="flex items-center gap-2 text-slate-600 text-xs">
           <Sparkles className="w-4 h-4 text-amber-500" />
           <span>Profile verified? Proceed to your active course workspace to manage resources & generate papers.</span>

@@ -16,21 +16,30 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [department, setDepartment] = useState('Computer Science & Engineering');
+  const [semester, setSemester] = useState('Semester V');
   const [role, setRole] = useState('faculty');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMsg('');
+
+    if (password !== confirmPassword) {
+      setErrorMsg('Passwords do not match. Please verify both password fields.');
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await api.post('/auth/register', {
         email,
         full_name: fullName,
         department,
+        semester,
         role,
         password
       });
@@ -47,9 +56,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     setFullName('Prof. Alan Turing');
     setEmail(`aturing${randomSuffix}@academic.edu`);
-    setDepartment('Computer Science & Engineering');
+    setDepartment('Artificial Intelligence & Machine Learning');
+    setSemester('Semester VI');
     setRole('faculty');
     setPassword('FacultyPassword123!');
+    setConfirmPassword('FacultyPassword123!');
   };
 
   return (
@@ -127,33 +138,52 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
                 required
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
+                placeholder="e.g. CSE / AIML"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Semester</label>
               <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
+                value={semester}
+                onChange={(e) => setSemester(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-semibold cursor-pointer"
               >
-                <option value="faculty">Faculty</option>
-                <option value="reviewer">Exam Reviewer</option>
-                <option value="admin">Administrator</option>
+                <option value="Semester I">Semester I</option>
+                <option value="Semester II">Semester II</option>
+                <option value="Semester III">Semester III</option>
+                <option value="Semester IV">Semester IV</option>
+                <option value="Semester V">Semester V</option>
+                <option value="Semester VI">Semester VI</option>
+                <option value="Semester VII">Semester VII</option>
+                <option value="Semester VIII">Semester VIII</option>
               </select>
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Confirm Password</label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+              />
+            </div>
           </div>
 
           <button
