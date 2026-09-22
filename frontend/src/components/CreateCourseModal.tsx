@@ -100,8 +100,14 @@ export const CreateCourseModal: React.FC<CreateCourseModalProps> = ({
   if (!isOpen) return null;
 
   const handleApplyTemplate = (tmpl: typeof TEMPLATES[0]) => {
-    setCode(tmpl.code);
-    setName(tmpl.title);
+    let candidateCode = tmpl.code;
+    let counter = 2;
+    while (existingCourses.some(c => c.code.toUpperCase() === candidateCode.toUpperCase())) {
+      candidateCode = `${tmpl.code}-${counter}`;
+      counter++;
+    }
+    setCode(candidateCode);
+    setName(candidateCode === tmpl.code ? tmpl.title : `${tmpl.title} (Section ${String.fromCharCode(63 + counter)})`);
     setDepartment(tmpl.department);
     setSemester(tmpl.semester);
     setDescription(tmpl.description);
@@ -193,7 +199,7 @@ export const CreateCourseModal: React.FC<CreateCourseModalProps> = ({
     // Check duplicate locally
     const duplicate = existingCourses.find(c => c.code.toUpperCase() === cleanCode);
     if (duplicate) {
-      setErrorMessage(`A course with code '${cleanCode}' already exists (${duplicate.name}). Please use a unique course code.`);
+      setErrorMessage(`Subject with ID '${cleanCode}' is already registered (${duplicate.name}). You can select it directly from your curriculum list or use a unique Subject ID (e.g. ${cleanCode}-B).`);
       setActiveTab('basic');
       return;
     }
