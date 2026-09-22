@@ -54,12 +54,13 @@ async def run_async_migrations() -> None:
     db_url = settings.ASYNC_DATABASE_URL
     ssl_mode = getattr(settings, "DB_SSL_MODE", "require").lower().strip()
     if settings.IS_POSTGRES:
+        connect_args = {"statement_cache_size": 0}
         if ssl_mode in ["require", "true", "1"]:
-            connect_args = {"ssl": "require"}
+            connect_args["ssl"] = "require"
         elif ssl_mode in ["disable", "false", "0", "off"]:
-            connect_args = {}
+            pass
         else:
-            connect_args = {"ssl": ssl_mode}
+            connect_args["ssl"] = ssl_mode
     else:
         connect_args = {"check_same_thread": False}
     

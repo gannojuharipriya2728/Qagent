@@ -46,6 +46,13 @@ def get_normalized_database_url(url: str) -> str:
     else:
         rest_no_query = rest
         
+    # Incompatible libpq query parameters that cause TypeError in asyncpg
+    incompatible_params = {
+        "sslmode", "ssl_mode", "channel_binding", "target_session_attrs",
+        "endpoint", "options", "gssencmode", "sslcert", "sslkey",
+        "sslrootcert", "connect_timeout", "client_encoding"
+    }
+
     # Clean query parameters incompatible with asyncpg
     clean_params = []
     if query_str:
@@ -54,8 +61,7 @@ def get_normalized_database_url(url: str) -> str:
             if not pair:
                 continue
             k = pair.split("=")[0].lower().strip()
-            # asyncpg handles SSL via connect_args; sslmode in URL causes TypeError
-            if k in ["sslmode", "ssl_mode"]:
+            if k in incompatible_params:
                 continue
             clean_params.append(pair)
             

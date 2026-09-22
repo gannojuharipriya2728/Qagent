@@ -38,10 +38,12 @@ htmlcov/
 
 # Database & Uploads
 data/*.db
+data/*.json
 data/uploads/
 data/exports/
 data/vector_store/
 data/backups/
+.freebuff/
 
 # Node / Frontend
 node_modules/

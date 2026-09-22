@@ -26,7 +26,7 @@ This guide details the architecture, configuration, environment variables, stora
               v                         v                              v
 +-----------------------------+ +--------------------+ +----------------------------------+
 |     PostgreSQL (asyncpg)    | |  S3 Object Storage | |     OpenRouter LLM Gateway       |
-|  - Neon / Supabase / RDS    | |  - Uploaded Files  | |  - nvidia/nemotron-3.5-lightning |
+|  - Neon PostgreSQL (Pooled) | |  - Uploaded Files  | |  - nvidia/nemotron-3.5-lightning |
 |  - Persistent DB Records    | |  - PDF Exam Sheets | |  - Structured Generation         |
 |  - Users, Courses, Papers   | |  - AWS S3 / R2     | |  - Function Timeout: 60s+        |
 +-----------------------------+ +--------------------+ +----------------------------------+
@@ -72,9 +72,9 @@ PROJECT_NAME="QAgent — Agentic AI Question Generator"
 VERSION="1.0.0"
 
 # =================================================================
-# Production Database (PostgreSQL 14+ / Neon / Supabase / AWS RDS)
+# Production Database (Neon PostgreSQL with Connection Pooling)
 # =================================================================
-DATABASE_URL=postgresql+asyncpg://<username>:<password>@<db-host>:5432/<db-name>
+DATABASE_URL=postgresql+asyncpg://neondb_owner:<PASSWORD>@ep-your-endpoint-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require
 DB_SSL_MODE=require
 DB_POOL_SIZE=5
 DB_MAX_OVERFLOW=10

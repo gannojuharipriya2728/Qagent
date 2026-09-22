@@ -1,6 +1,6 @@
 """
 QAgent Production Flow Verification Script
-Tests end-to-end database-backed operations against Supabase PostgreSQL:
+Tests end-to-end database-backed operations against Neon PostgreSQL:
 1. Health & AI Gateway connectivity
 2. User creation & JWT Authentication
 3. Course & Academic structure persistence
@@ -30,11 +30,11 @@ from app.models.paper import QuestionPaper, Question, GenerationSession, Validat
 from app.services.llm.openrouter_provider import OpenRouterProvider
 from app.services.pdf_generator import QuestionPaperPDFGenerator
 
-async def test_full_supabase_flow():
+async def test_full_production_flow():
     print("=" * 65)
-    print("  QAgent Supabase PostgreSQL End-to-End Operational Verification")
+    print("  QAgent Neon PostgreSQL End-to-End Operational Verification")
     print("=" * 65)
-    print(f"Database:      {'PostgreSQL (Supabase)' if settings.IS_POSTGRES else 'SQLite'}")
+    print(f"Database:      {'PostgreSQL (Neon)' if settings.IS_POSTGRES else 'SQLite'}")
     print(f"Environment:   {settings.ENVIRONMENT}")
     print("-" * 65)
 
@@ -248,7 +248,7 @@ async def test_full_supabase_flow():
             print(f"  [OK] PDF Generated Successfully ({len(pdf_bytes)} bytes)")
 
             print("\n" + "=" * 65)
-            print("  ALL PRODUCTION SUPABASE WORKFLOWS VERIFIED SUCCESSFULLY!")
+            print("  ALL PRODUCTION NEON WORKFLOWS VERIFIED SUCCESSFULLY!")
             print("=" * 65)
 
         finally:
@@ -274,4 +274,4 @@ async def test_full_supabase_flow():
     await engine.dispose()
 
 if __name__ == "__main__":
-    asyncio.run(test_full_supabase_flow())
+    asyncio.run(test_full_production_flow())

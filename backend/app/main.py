@@ -186,3 +186,134 @@ async def health_llm_check():
     }
 
 
+# =================================================================
+# TEMPORARY REGISTRATION DIAGNOSTIC ENDPOINTS (SAFE & NON-SECRET)
+# =================================================================
+
+@app.get(f"{settings.API_V1_STR}/debug/register-config", tags=["Diagnostics"])
+async def debug_register_config():
+    """
+    Temporary diagnostic endpoint to inspect registration configuration safely.
+    NEVER exposes passwords, SECRET_KEY, DATABASE_URL, or API keys.
+    """
+    from app.models.user import User
+    db_info = settings.SAFE_DATABASE_INFO
+    routes_list = []
+    for route in app.routes:
+        if hasattr(route, "methods") and hasattr(route, "path"):
+            routes_list.append(f"{route.path} {sorted(list(route.methods))}")
+
+    return {
+        "route_exists": any("/api/auth/register" in r for r in routes_list),
+        "environment": settings.ENVIRONMENT,
+        "database_driver": db_info.get("driver"),
+        "database_host": db_info.get("hostname"),
+        "database_name": db_info.get("database"),
+        "user_model_loaded": hasattr(User, "__tablename__") and User.__tablename__ == "users",
+        "registered_routes": routes_list
+    }
+
+
+@app.post(f"{settings.API_V1_STR}/debug/register", tags=["Diagnostics"])
+async def debug_register_trace(payload: dict):
+    """
+    Temporary diagnostic endpoint that simulates registration step-by-step
+    and identifies the exact failing stage without crashing or exposing secrets.
+    """
+    from app.models.user import User
+    from app.schemas.auth import UserCreate
+    from app.core.security import get_password_hash, create_access_token
+    from sqlalchemy import text, select
+
+    report = {
+        "status": "in_progress",
+        "stage": "starting",
+        "table_users_exists": False,
+        "error_type": None,
+        "error_detail": None,
+        "user_lookup_ok": False,
+        "password_hash_ok": False,
+        "user_insert_ok": False,
+        "token_generation_ok": False
+    }
+
+    # Stage 1: Schema Validation
+    report["stage"] = "schema_validation"
+    try:
+        user_in = UserCreate(**payload)
+    except Exception as e:
+        report["status"] = "failed"
+        report["error_type"] = e.__class__.__name__
+        report["error_detail"] = str(e)
+        return report
+
+    # Stage 2: Database Table Check & Session
+    report["stage"] = "table_check"
+    try:
+        async with AsyncSessionLocal() as session:
+            # Check table existence
+            table_check = await session.execute(
+                text("SELECT 1 FROM information_schema.tables WHERE table_name = 'users'")
+                if settings.IS_POSTGRES else
+                text("SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'")
+            )
+            report["table_users_exists"] = bool(table_check.scalar())
+
+            # Stage 3: User Lookup
+            report["stage"] = "user_lookup"
+            stmt = select(User).where(User.email == user_in.email)
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+            report["user_lookup_ok"] = True
+            if existing:
+                report["status"] = "failed"
+                report["error_type"] = "UserAlreadyExists"
+                report["error_detail"] = f"User with email '{user_in.email}' already exists."
+                return report
+
+            # Stage 4: Password Hash
+            report["stage"] = "password_hash"
+            hashed_pwd = get_password_hash(user_in.password)
+            report["password_hash_ok"] = True
+
+            # Stage 5: User Insert & Commit
+            report["stage"] = "user_insert"
+            user = User(
+                email=user_in.email,
+                full_name=user_in.full_name,
+                department=user_in.department,
+                role=user_in.role or "faculty",
+                hashed_password=hashed_pwd,
+                is_active=True
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            report["user_insert_ok"] = True
+
+            # Stage 6: Token Generation
+            report["stage"] = "token_generation"
+            _ = create_access_token(subject=user.id, role=user.role)
+            report["token_generation_ok"] = True
+
+            # Cleanup test user created via debug endpoint if email starts with debug
+            if "debug" in user_in.email.lower() or "test" in user_in.email.lower():
+                await session.delete(user)
+                await session.commit()
+                report["cleaned_up"] = True
+
+            report["status"] = "success"
+            report["stage"] = "completed"
+            return report
+
+    except Exception as e:
+        report["status"] = "failed"
+        report["error_type"] = e.__class__.__name__
+        sanitized_err = str(e).splitlines()[0] if str(e) else "Database execution error"
+        for secret in [settings.SECRET_KEY, getattr(settings, "NVIDIA_API_KEY", ""), getattr(settings, "OPENROUTER_API_KEY", "")]:
+            if secret and len(secret) > 4:
+                sanitized_err = sanitized_err.replace(secret, "[REDACTED]")
+        report["error_detail"] = sanitized_err
+        return report
+
+
+

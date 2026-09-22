@@ -24,19 +24,28 @@ engine_kwargs = {
 }
 
 if is_postgres:
-    # PostgreSQL configuration with SSL and connection pooling for Render / Managed Postgres
+    # PostgreSQL configuration with SSL and connection pooling for Neon / Managed Postgres
     ssl_mode = settings.DB_SSL_MODE.lower().strip()
+    connect_args = {
+        "statement_cache_size": 0,  # Required for Neon / PgBouncer connection pooling
+    }
     if ssl_mode in ["require", "true", "1"]:
-        engine_kwargs["connect_args"] = {"ssl": "require"}
+        connect_args["ssl"] = "require"
     elif ssl_mode in ["disable", "false", "0", "off"]:
-        engine_kwargs["connect_args"] = {}
+        pass
     else:
-        engine_kwargs["connect_args"] = {"ssl": ssl_mode}
-        
-    engine_kwargs["pool_size"] = settings.DB_POOL_SIZE
-    engine_kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
-    engine_kwargs["pool_pre_ping"] = True
-    engine_kwargs["pool_recycle"] = 1800
+        connect_args["ssl"] = ssl_mode
+
+    engine_kwargs["connect_args"] = connect_args
+
+    if os.getenv("VERCEL"):
+        from sqlalchemy.pool import NullPool
+        engine_kwargs["poolclass"] = NullPool
+    else:
+        engine_kwargs["pool_size"] = settings.DB_POOL_SIZE
+        engine_kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
+        engine_kwargs["pool_pre_ping"] = True
+        engine_kwargs["pool_recycle"] = 1800
 else:
     # SQLite configuration for local development and test environments
     engine_kwargs["connect_args"] = {"check_same_thread": False}

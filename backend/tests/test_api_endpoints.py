@@ -25,6 +25,31 @@ async def test_health_endpoints():
         assert "database" in db_data
         assert "status" in db_data
 
+        # 3. Debug register config diagnostic
+        config_resp = await client.get("/api/debug/register-config")
+        assert config_resp.status_code == 200
+        config_data = config_resp.json()
+        assert config_data["route_exists"] is True
+        assert config_data["user_model_loaded"] is True
+        assert "registered_routes" in config_data
+
+        # 4. Debug register trace test
+        trace_resp = await client.post(
+            "/api/debug/register",
+            json={
+                "email": "debug.test.diagnostic@example.com",
+                "password": "DebugPassword123!",
+                "full_name": "Diagnostic User",
+                "department": "CSE",
+                "role": "faculty"
+            }
+        )
+        assert trace_resp.status_code == 200
+        trace_data = trace_resp.json()
+        assert trace_data["stage"] == "completed"
+        assert trace_data["status"] == "success"
+        assert trace_data["user_insert_ok"] is True
+
 from app.core.database import engine, Base
 
 @pytest.mark.asyncio

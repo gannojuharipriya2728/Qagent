@@ -29,7 +29,7 @@ async def verify_database():
     print("  QAgent Database Health & Verification Check")
     print("=" * 65)
     print(f"Environment:       {settings.ENVIRONMENT}")
-    print(f"Database Dialect:  {'PostgreSQL (Supabase)' if settings.IS_POSTGRES else 'SQLite'}")
+    print(f"Database Dialect:  {'PostgreSQL (Neon)' if settings.IS_POSTGRES else 'SQLite'}")
     print(f"Seed Demo Data:    {settings.SEED_DEMO_DATA}")
     print("-" * 65)
 
