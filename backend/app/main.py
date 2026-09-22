@@ -240,6 +240,26 @@ async def debug_llm_provider_path():
     }
 
 
+@app.get("/debug/routes", tags=["Diagnostics"])
+@app.get(f"{settings.API_V1_STR}/debug/routes", tags=["Diagnostics"])
+async def debug_routes():
+    """
+    Diagnostic endpoint returning registered routes and HTTP methods safely.
+    NEVER exposes secrets, passwords, tokens, DATABASE_URL, or API keys.
+    """
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "methods") and hasattr(route, "path"):
+            routes.append({
+                "path": route.path,
+                "methods": sorted(list(route.methods))
+            })
+    return {
+        "count": len(routes),
+        "routes": routes
+    }
+
+
 # =================================================================
 # TEMPORARY REGISTRATION DIAGNOSTIC ENDPOINTS (SAFE & NON-SECRET)
 # =================================================================

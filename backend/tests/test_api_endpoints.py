@@ -150,3 +150,35 @@ async def test_cors_preflight_and_headers():
         assert preview_resp.status_code == 200
         assert preview_resp.headers.get("access-control-allow-origin") == preview_origin
 
+
+@pytest.mark.asyncio
+async def test_faculty_profile_endpoint_and_cors():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Unauthenticated request must return 401 Unauthorized (NOT 404)
+        resp = await client.get("/api/faculty/profile")
+        assert resp.status_code == 401, f"Expected 401 Unauthorized, got {resp.status_code}"
+        assert resp.status_code != 404, "Endpoint /api/faculty/profile must not return 404"
+
+        # 2. CORS preflight OPTIONS to /api/faculty/profile
+        vercel_origin = "https://qagent-frontend-iota.vercel.app"
+        opt_resp = await client.options(
+            "/api/faculty/profile",
+            headers={
+                "Origin": vercel_origin,
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization,content-type",
+            }
+        )
+        assert opt_resp.status_code == 200
+        assert opt_resp.headers.get("access-control-allow-origin") == vercel_origin
+        assert opt_resp.headers.get("access-control-allow-credentials") == "true"
+
+        # 3. Verify debug/routes endpoint includes /api/faculty/profile
+        routes_resp = await client.get("/api/debug/routes")
+        assert routes_resp.status_code == 200
+        routes_data = routes_resp.json()
+        paths = [r["path"] for r in routes_data["routes"]]
+        assert "/api/faculty/profile" in paths
+
+
