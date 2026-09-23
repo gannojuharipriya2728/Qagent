@@ -1,250 +1,161 @@
-# QAgent — Vercel Serverless Backend Deployment Guide
+# QAgent — Vercel Frontend Deployment Guide
 
-This guide details the architecture, configuration, environment variables, storage policies, and deployment steps required to deploy the **QAgent FastAPI Backend** to **Vercel's Python Serverless Runtime** (`@vercel/python`).
+Vercel hosts **only the React client**. The FastAPI service runs on Render and
+the database on Neon; see `PRODUCTION_DEPLOYMENT.md` and `render.yaml` for those.
+
+> **Why this changed.** This project previously shipped a `vercel.json` that
+> built `api/index.py` with `@vercel/python` and routed `/(.*)` to it, so the
+> Vercel project answered every request — including `/` — with FastAPI JSON, or
+> with `500 FUNCTION_INVOCATION_FAILED` when the import failed. That is the
+> behaviour still visible on the abandoned `qagent-131s.vercel.app` deployment.
+> The Python entrypoints have been removed and `vercel.json` now builds the Vite
+> bundle, so the browser receives the React app.
 
 ---
 
-## 1. System Architecture: Render vs. Vercel
+## 1. Deployment topology
 
 ```
-                                  +-----------------------+
-                                  |    React Frontend     |
-                                  |   (Vite / Vercel/...) |
-                                  +-----------+-----------+
-                                              | HTTPS / REST
-                                              v
-+-----------------------------------------------------------------------------------------+
-|                               Vercel Python Serverless Runtime                          |
-|                                       (api/index.py)                                    |
-|                                                                                         |
-|  +---------------------+   +---------------------+   +-------------------------------+  |
-|  |     Auth & RBAC     |   |   Academic Engine   |   |   5-Agent Generation Engine   |  |
-|  |   (JWT / bcrypt)    |   |  (Courses / Units)  |   | (Requirement, Retrieval, ...) |  |
-|  +----------+----------+   +----------+----------+   +---------------+---------------+  |
-+-------------|-------------------------|------------------------------|------------------+
-              |                         |                              |
-              v                         v                              v
-+-----------------------------+ +--------------------+ +----------------------------------+
-|     PostgreSQL (asyncpg)    | |  S3 Object Storage | |     OpenRouter LLM Gateway       |
-|  - Neon PostgreSQL (Pooled) | |  - Uploaded Files  | |  - nvidia/nemotron-3.5-lightning |
-|  - Persistent DB Records    | |  - PDF Exam Sheets | |  - Structured Generation         |
-|  - Users, Courses, Papers   | |  - AWS S3 / R2     | |  - Function Timeout: 60s+        |
-+-----------------------------+ +--------------------+ +----------------------------------+
+        Browser
+           |
+           v
+  Vercel  (static Vite bundle, SPA fallback)
+    https://qagent-frontend-jxvh.vercel.app
+           |
+           |  HTTPS  ->  https://qagent-production.onrender.com/api/...
+           v
+  Render  (FastAPI + uvicorn)
+           |
+     +-----+------------------+
+     v                        v
+  Neon PostgreSQL       OpenRouter
+  (asyncpg)             (NVIDIA Nemotron 3.5 Lightning)
 ```
 
-### Key Architectural Differences
-
-| Component | Render (Previous) | Vercel Serverless (Current) |
-|---|---|---|
-| **Execution Model** | Long-running container (`uvicorn --workers 2`) | Ephemeral serverless function invocation |
-| **Lifecycle** | Always-on background process | Event-driven per HTTP request |
-| **Filesystem** | Container disk (ephemeral per deploy) | Read-only container (`/tmp` writable for ephemeral scratch only) |
-| **Timeout Limits** | Configurable up to minutes/hours | Configured via `maxDuration: 60` in `vercel.json` |
-| **Storage Engine** | Local filesystem or S3 | S3 Object Storage (`STORAGE_PROVIDER=s3`) strongly required |
-| **Database** | Managed PostgreSQL (`asyncpg`) | Managed PostgreSQL (`asyncpg`) |
+Vercel serves static assets only. It runs no serverless functions, holds no
+database credentials and holds no AI keys.
 
 ---
 
-## 2. Serverless & Storage Limitations Report
+## 2. Project settings
 
-| Feature / Artifact | Persistence on Vercel | Status & Recommendation |
+The repository ships a root `vercel.json`, which overrides the dashboard's build
+settings. It works with **Root Directory = repository root**:
+
+| Setting | Value | Source |
 |---|---|---|
-| **PostgreSQL Database** | Persistent | Fully compatible via managed PostgreSQL (`DATABASE_URL`). Uses `asyncpg`. |
-| **Uploaded Files (Syllabus/Notes/PDFs)** | Ephemeral if local | Use `STORAGE_PROVIDER=s3` (AWS S3, Cloudflare R2, MinIO). Local uploads to `/tmp` do not persist across lambdas. |
-| **Generated Question Papers (PDFs)** | Ephemeral if local | Generated on-the-fly and streamed directly over HTTP; saved to S3 when `STORAGE_PROVIDER=s3`. |
-| **Vector Store Index** | Ephemeral if local JSON | Uses in-memory & `/tmp/qagent/vector_store` for ephemeral requests; use PostgreSQL / PGVector or S3 for persistent distributed vectors. |
-| **Background Daemons / Cron Loops** | Not Supported | Serverless instances freeze between requests. Scheduled jobs must use Vercel Cron Jobs (`crons` in `vercel.json`). |
-| **SQLite Databases** | Not Supported in Production | SQLite files in `/tmp` lose data across lambdas. PostgreSQL with `asyncpg` is enforced in production. |
+| Framework Preset | Vite | `vercel.json` |
+| Install Command | `npm --prefix frontend ci` | `vercel.json` |
+| Build Command | `npm --prefix frontend run build` | `vercel.json` |
+| Output Directory | `frontend/dist` | `vercel.json` |
+| Node.js Version | 22.x (or the project default) | dashboard |
+
+If the Vercel project instead has **Root Directory = `frontend`**, Vercel reads
+`frontend/vercel.json`, which carries the same SPA rewrite and cache headers.
+Either configuration produces a working deployment.
+
+`npm ci` is deliberate: it installs exactly what `frontend/package-lock.json`
+pins, so a production build cannot silently pick up a different dependency tree
+than the one that was tested.
 
 ---
 
-## 3. Required Environment Variables (Vercel Project Settings)
+## 3. Environment variables (Vercel project settings)
 
-Configure these variables in **Vercel Dashboard -> Project -> Settings -> Environment Variables**:
+Only one variable is required, and it must carry the `VITE_` prefix for Vite to
+expose it to client code:
 
 ```ini
-# =================================================================
-# Application & Environment Mode
-# =================================================================
-ENVIRONMENT=production
-SEED_DEMO_DATA=false
-PROJECT_NAME="QAgent — Agentic AI Question Generator"
-VERSION="1.0.0"
+VITE_API_BASE_URL=https://qagent-production.onrender.com
+```
 
-# =================================================================
-# Production Database (Neon PostgreSQL with Connection Pooling)
-# =================================================================
-DATABASE_URL=postgresql+asyncpg://neondb_owner:<PASSWORD>@ep-your-endpoint-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require
-DB_SSL_MODE=require
-DB_POOL_SIZE=5
-DB_MAX_OVERFLOW=10
+`frontend/src/api/client.ts` appends `/api` itself, producing
+`https://qagent-production.onrender.com/api/...`. Do **not** include the `/api`
+suffix in the variable, and do not add a trailing slash.
 
-# =================================================================
-# Production Object Storage (AWS S3 / Cloudflare R2 / MinIO)
-# =================================================================
-STORAGE_PROVIDER=s3
-S3_ENDPOINT_URL=https://s3.us-east-1.amazonaws.com
-S3_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID
-S3_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_ACCESS_KEY
-S3_BUCKET=qagent-production-storage
-S3_REGION=us-east-1
+`frontend/.env.production` carries the same value, so a build still targets the
+Render backend even if the dashboard variable is missing.
 
-# =================================================================
-# AI / LLM Provider (NVIDIA NIM or OpenRouter)
-# =================================================================
-LLM_PROVIDER=openrouter
-OPENROUTER_API_KEY=sk-or-v1-your-openrouter-key
-OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_APP_NAME=QAgent
+> **Never put a backend secret in a `VITE_` variable.** Everything prefixed with
+> `VITE_` is inlined into the JavaScript bundle and is readable by anyone who
+> opens the site. `DATABASE_URL`, `SECRET_KEY`, `OPENROUTER_API_KEY` and the
+> `S3_*` credentials belong on Render only.
 
-# (Alternative NVIDIA Direct NIM Provider)
-NVIDIA_API_KEY=nvapi-your-nvidia-key
-NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
-NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+---
 
-# =================================================================
-# Security & JWT Tokens
-# =================================================================
-SECRET_KEY=generate-a-64-character-random-hex-string-using-openssl-rand-hex-32
-ACCESS_TOKEN_EXPIRE_MINUTES=10080
+## 4. SPA routing
 
-# =================================================================
-# CORS Allowed Origins
-# =================================================================
-CORS_ORIGINS=["https://qagent-frontend-iota.vercel.app", "https://qagent.vercel.app"]
+The client routes in React state rather than through the URL, so the application
+lives at `/`. The rewrite in `vercel.json` sends any non-asset path to
+`index.html`, which means a refresh or a typed-in deep link renders the app
+instead of Vercel's 404 page:
+
+```json
+{ "source": "/((?!assets/).*)", "destination": "/index.html" }
+```
+
+Hashed files under `/assets/` are excluded so they keep their immutable
+`Cache-Control` header and are never shadowed by the HTML fallback.
+
+---
+
+## 5. Deploying
+
+### Git integration (recommended)
+
+Pushing to the production branch triggers a build. Preview branches build to
+`qagent-*.vercel.app` hostnames, which the backend's `CORS_ORIGIN_REGEX`
+already admits.
+
+### Vercel CLI
+
+```bash
+npm i -g vercel
+vercel link
+vercel --prod
+```
+
+### Local reproduction of the production build
+
+```bash
+npm --prefix frontend ci
+npm --prefix frontend run build
+npx --prefix frontend vite preview --outDir dist
 ```
 
 ---
 
-## 4. Preserved Routes Parity
-
-All backend API routes are mounted on the FastAPI `app` and exposed via `api/index.py`:
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/` | `GET` | Root health and service metadata |
-| `/health` | `GET` | Complete service health check (DB, Storage, LLM status) |
-| `/health/db` | `GET` | Safe database diagnostic check (no credential leakage) |
-| `/health/llm` | `GET` | Safe LLM provider reachability check |
-| `/docs` | `GET` | Interactive Swagger API documentation |
-| `/openapi.json` | `GET` | OpenAPI 3.0 specification |
-| `/api/auth/register` | `POST` | User registration & JWT generation |
-| `/api/auth/login` | `POST` | User login authentication |
-| `/api/auth/me` | `GET` | Current authenticated user profile |
-| `/api/courses` | `GET`, `POST` | List and create academic courses |
-| `/api/courses/{id}` | `GET`, `DELETE` | Retrieve and delete course |
-| `/api/resources` | `GET` | List academic uploaded resources |
-| `/api/resources/upload` | `POST` | Multipart file upload and RAG vector indexing |
-| `/api/resources/{id}` | `GET`, `DELETE` | Resource details and deletion |
-| `/api/resources/{id}/download` | `GET` | Download raw resource document |
-| `/api/generate` | `POST` | 5-agent question paper generation workflow |
-| `/api/papers` | `GET` | List generated question papers |
-| `/api/papers/{id}` | `GET`, `DELETE` | Get paper details or delete paper |
-| `/api/papers/{id}/pdf` | `GET` | Export question paper to formatted PDF |
-| `/api/papers/{id}/analytics` | `GET` | Paper bloom, CO, and difficulty distribution analytics |
-| `/api/papers/{id}/questions/{qid}` | `PUT` | Edit question in paper |
-| `/api/papers/{id}/questions/{qid}/regenerate` | `POST` | Regenerate specific question via AI agent |
-| `/api/admin/stats` | `GET` | System overview statistics |
-| `/api/admin/users` | `GET` | Admin user management |
-| `/api/admin/users/{id}/toggle-status` | `PATCH` | Activate/Deactivate user |
-| `/api/ai/health` | `GET` | AI provider connectivity diagnostics |
-
----
-
-## 5. Deployment Instructions
-
-### Option A: Deploy via Vercel CLI
-
-1. Install Vercel CLI (if not installed):
-   ```bash
-   npm i -g vercel
-   ```
-
-2. Login to Vercel:
-   ```bash
-   vercel login
-   ```
-
-3. Deploy from repository root:
-   ```bash
-   vercel
-   ```
-
-4. Deploy to Production:
-   ```bash
-   vercel --prod
-   ```
-
-### Option B: Deploy via Vercel Git Integration (GitHub / GitLab)
-
-1. Push your repository to GitHub.
-2. In the Vercel Dashboard, click **Add New... -> Project** and import the repository.
-3. Keep default settings (Framework Preset: **Other**, Root Directory: `./`).
-4. Add all environment variables listed in Section 3.
-5. Click **Deploy**.
-
----
-
-## 6. Database Migrations (PostgreSQL)
-
-Execute database migrations against your remote PostgreSQL instance prior to production traffic:
+## 6. Post-deployment verification
 
 ```bash
-# Set remote DATABASE_URL in your shell or .env
-export DATABASE_URL="postgresql+asyncpg://user:password@host:5432/dbname"
+# 1. The root must return the React shell, not FastAPI JSON.
+curl -s https://qagent-frontend-jxvh.vercel.app/ | head -20
+#    Expect <!doctype html> ... <div id="root"></div>
+#    A JSON body such as {"status":"healthy",...} means a Python function is
+#    still attached to the project.
 
-# Run migrations
-alembic upgrade head
+# 2. A deep link must also return the shell (SPA fallback).
+curl -s -o /dev/null -w '%{http_code}\n' https://qagent-frontend-jxvh.vercel.app/dashboard
+
+# 3. The bundle must target Render and nothing else.
+curl -s https://qagent-frontend-jxvh.vercel.app/ \
+  | grep -o '/assets/[^"]*\.js' | head -1
+# then fetch that asset and confirm it contains qagent-production.onrender.com
+# and no localhost / qagent-131s reference.
+
+# 4. The backend must answer the browser's preflight for this origin.
+curl -si -X OPTIONS https://qagent-production.onrender.com/api/auth/login \
+  -H 'Origin: https://qagent-frontend-jxvh.vercel.app' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: authorization,content-type' \
+  | grep -i access-control-allow-origin
 ```
 
 ---
 
-## 7. Post-Deployment Verification Suite
+## 7. Retiring `qagent-131s.vercel.app`
 
-Run these tests against your Vercel deployment URL (e.g. `https://qagent-backend.vercel.app`):
-
-### 1. Health Checks
-```bash
-# Root Endpoint
-curl -s https://<your-vercel-domain>.vercel.app/
-
-# Full Health Check
-curl -s https://<your-vercel-domain>.vercel.app/health
-
-# Database Diagnostic (PostgreSQL connectivity)
-curl -s https://<your-vercel-domain>.vercel.app/health/db
-
-# LLM Gateway Check
-curl -s https://<your-vercel-domain>.vercel.app/health/llm
-```
-
-### 2. User Registration & Login
-```bash
-# Register User
-curl -s -X POST https://<your-vercel-domain>.vercel.app/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "faculty@university.edu",
-    "password": "SecurePassword123!",
-    "full_name": "Prof. Alan Turing",
-    "department": "Computer Science & Engineering",
-    "role": "professor"
-  }'
-
-# Login
-curl -s -X POST https://<your-vercel-domain>.vercel.app/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "faculty@university.edu",
-    "password": "SecurePassword123!"
-  }'
-```
-
-### 3. Course Management
-```bash
-curl -s -X GET https://<your-vercel-domain>.vercel.app/api/courses
-```
-
-### 4. Interactive API Documentation
-Open `https://<your-vercel-domain>.vercel.app/docs` in any web browser.
+That project was the FastAPI-on-Vercel experiment. It is no longer referenced by
+the frontend, and it has been removed from the backend's CORS allow-list, so it
+cannot exchange credentialed requests with the API. Deleting the Vercel project
+itself is a dashboard action and is left to the project owner.

@@ -2,10 +2,11 @@
   "name": "qagent",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "frontend"
-  ],
+  "description": "Repository-root helpers. The React client is a self-contained npm project in frontend/ with its own lockfile; the FastAPI service is deployed separately to Render.",
   "scripts": {
-    "build": "npm run build --workspace=frontend && node -e \"const fs=require('fs'); fs.cpSync('frontend/dist', 'dist', {recursive:true});\""
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "install:frontend": "npm --prefix frontend ci"
   }
 }

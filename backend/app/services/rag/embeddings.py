@@ -1,3 +1,4 @@
+import hashlib
 import math
 import re
 from typing import List, Dict, Optional
@@ -9,6 +10,14 @@ class LightweightTfidfVectorizer:
     Lightweight, high-performance TF-IDF vectorizer tailored for academic RAG embeddings.
     Zero dependency on heavy binary libraries like scikit-learn / scipy to stay well within
     serverless bundle size limits (<500MB on Vercel).
+
+    Feature positions come from a stable hash of the term (the "hashing trick")
+    rather than from the term's rank in the fitted corpus. Rank-based positions
+    are re-assigned whenever a new document is indexed, which silently moves
+    already-stored vectors into a different coordinate space and corrupts every
+    subsequent cosine comparison against them. Hashing keeps each term pinned to
+    one dimension for the lifetime of the index, so vectors written months apart
+    -- or re-hydrated from PostgreSQL after a restart -- remain comparable.
     """
     def __init__(self, max_features: int = 1536):
         self.max_features = max_features
@@ -48,7 +57,24 @@ class LightweightTfidfVectorizer:
             tokens.append(f"{filtered[i]}_{filtered[i+1]}_{filtered[i+2]}")
         return tokens
 
+    def feature_index(self, term: str) -> int:
+        """
+        Maps a term to its permanent dimension.
+
+        blake2b rather than the builtin hash(): PYTHONHASHSEED randomises str
+        hashing per process, which would put every worker and every restart in a
+        different coordinate space.
+        """
+        digest = hashlib.blake2b(term.encode("utf-8"), digest_size=8).digest()
+        return int.from_bytes(digest, "big") % self.max_features
+
     def fit(self, corpus: List[str]):
+        """
+        Refreshes inverse-document-frequency weights from ``corpus``.
+
+        Only the weights are learned here; dimensions are fixed by
+        :meth:`feature_index`, so refitting never invalidates stored vectors.
+        """
         df_counts: Dict[str, int] = {}
         doc_count = len(corpus)
         for doc in corpus:
@@ -56,28 +82,28 @@ class LightweightTfidfVectorizer:
             for t in tokens:
                 df_counts[t] = df_counts.get(t, 0) + 1
 
-        # Select top features
+        # Cap the tracked term statistics, keeping the most widely attested ones.
         sorted_features = sorted(df_counts.items(), key=lambda x: x[1], reverse=True)[:self.max_features]
-        self.vocab = {feat: i for i, (feat, _) in enumerate(sorted_features)}
+        self.vocab = {feat: self.feature_index(feat) for feat, _ in sorted_features}
         self.idf = {feat: math.log((1 + doc_count) / (1 + count)) + 1.0 for feat, count in sorted_features}
 
     def transform(self, text: str) -> List[float]:
-        vec = [0.0] * max(len(self.vocab), 1)
-        if not self.vocab:
-            return vec
+        vec = [0.0] * self.max_features
         tokens = self._tokenize(text)
         if not tokens:
             return vec
+
         tf_counts: Dict[str, int] = {}
         for t in tokens:
-            if t in self.vocab:
-                tf_counts[t] = tf_counts.get(t, 0) + 1
+            tf_counts[t] = tf_counts.get(t, 0) + 1
 
         for term, count in tf_counts.items():
-            idx = self.vocab[term]
+            idx = self.feature_index(term)
             tf = 1.0 + math.log(count)
+            # Unseen terms keep a neutral weight instead of being discarded, so a
+            # query phrased with words absent from the fitted corpus still ranks.
             idf = self.idf.get(term, 1.0)
-            vec[idx] = tf * idf
+            vec[idx] += tf * idf
 
         # L2 normalization
         norm = math.sqrt(sum(v * v for v in vec))
@@ -108,6 +134,11 @@ class EmbeddingEngine:
             if len(self._corpus_cache) > 2000:
                 self._corpus_cache = self._corpus_cache[-1500:]
             self._fit_vectorizer()
+
+    @property
+    def dimension(self) -> int:
+        """Fixed width of every vector this engine produces."""
+        return self.local_vectorizer.max_features
 
     def get_local_embedding(self, text: str) -> List[float]:
         if not self._is_fitted:

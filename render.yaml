@@ -1,0 +1,71 @@
+# Render Blueprint for the QAgent FastAPI backend.
+#
+# The service that currently serves https://qagent-production.onrender.com was
+# created from the dashboard, so editing this file does not reconfigure it — it
+# documents, and reproduces, the settings that service needs. To adopt it, use
+# "New > Blueprint" and point Render at this repository.
+#
+# Secrets are declared with `sync: false`, which means Render prompts for them
+# and stores them in the service's environment. Never commit their values.
+
+services:
+  - type: web
+    name: qagent-production
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+
+    # Run from the repository root so alembic.ini and alembic/ are reachable.
+    # asgi.py puts backend/ on sys.path, which the app package requires.
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn asgi:app --host 0.0.0.0 --port $PORT --workers 1
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: ENVIRONMENT
+        value: production
+      - key: SEED_DEMO_DATA
+        value: "false"
+
+      # Neon PostgreSQL. Production refuses to start on SQLite or with this unset.
+      - key: DATABASE_URL
+        sync: false
+
+      # JWT signing key. If unset, the service generates a random key per boot,
+      # which invalidates every issued token on restart — set it explicitly.
+      - key: SECRET_KEY
+        sync: false
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "10080"
+
+      # Browser origins permitted to call this API. Preview deployments of the
+      # qagent Vercel projects are additionally matched by CORS_ORIGIN_REGEX.
+      - key: CORS_ORIGINS
+        value: https://qagent-frontend-jxvh.vercel.app
+
+      # OpenRouter gateway to NVIDIA Nemotron 3.5 Lightning.
+      - key: LLM_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: nvidia/nemotron-3.5-lightning-30b-a3b
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: OPENROUTER_SITE_URL
+        value: https://qagent-frontend-jxvh.vercel.app
+      - key: OPENROUTER_APP_NAME
+        value: QAgent
+
+      # Render's disk is ephemeral and not shared between instances. Uploaded
+      # documents are parsed and chunked into PostgreSQL on upload, so the files
+      # themselves are scratch; set STORAGE_PROVIDER=s3 (plus the S3_* keys) to
+      # retain the originals for re-download.
+      - key: STORAGE_PROVIDER
+        value: local
+      - key: VECTOR_STORE_PROVIDER
+        value: local

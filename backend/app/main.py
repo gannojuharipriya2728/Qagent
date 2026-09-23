@@ -1,12 +1,13 @@
 import os
 from typing import Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import engine, Base, AsyncSessionLocal, get_db
+from app.core.errors import safe_error_detail
 from app.core.security import decode_access_token
 from app.core.seed import seed_database
 from app.api.deps import security_bearer
@@ -34,7 +35,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,6 +65,51 @@ import logging
 
 logger = logging.getLogger("qagent.main")
 
+
+def iter_route_specs():
+    """
+    Yields (path, methods) for every route reachable on the app.
+
+    ``app.include_router`` no longer copies child routes into ``app.routes``; it
+    appends a lazy container instead. Walking only ``app.routes`` therefore
+    reports the app-level endpoints and misses every router, so expand the
+    containers via their resolved candidates.
+    """
+    specs: list[tuple[str, list[str]]] = []
+    for route in app.routes:
+        candidates = getattr(route, "effective_candidates", None)
+        if callable(candidates):
+            try:
+                for candidate in candidates():
+                    path = getattr(candidate, "path", None)
+                    if path:
+                        specs.append((path, sorted(getattr(candidate, "methods", []) or [])))
+                continue
+            except Exception:  # pragma: no cover - defensive across FastAPI versions
+                logger.debug("Could not expand included router while listing routes.")
+        path = getattr(route, "path", None)
+        if path and hasattr(route, "methods"):
+            specs.append((path, sorted(route.methods)))
+    return specs
+
+
+DIAGNOSTICS_ENABLED = (
+    settings.ENVIRONMENT.lower() != "production"
+    or os.getenv("ENABLE_DIAGNOSTICS", "").lower() in ("1", "true", "yes")
+)
+
+
+async def require_diagnostics_enabled():
+    """
+    Keeps the diagnostic surface out of production.
+
+    These endpoints enumerate the route table, name the database host and can
+    write user rows, none of which should be reachable by an anonymous caller on
+    the live deployment. 404 rather than 403 so their existence is not advertised.
+    """
+    if not DIAGNOSTICS_ENABLED:
+        raise HTTPException(status_code=404, detail="Not Found")
+
 @app.get("/", tags=["Health"])
 @app.get("/index.html", tags=["Health"], include_in_schema=False)
 async def root_status():
@@ -92,11 +138,7 @@ async def health_check():
     except Exception as e:
         db_status = "unreachable"
         db_error_type = e.__class__.__name__
-        sanitized_msg = str(e).splitlines()[0] if str(e) else "Connection failed"
-        # Sanitize against any accidental secret leakage in error string
-        for secret in [settings.SECRET_KEY, getattr(settings, "NVIDIA_API_KEY", ""), getattr(settings, "OPENROUTER_API_KEY", "")]:
-            if secret and len(secret) > 4:
-                sanitized_msg = sanitized_msg.replace(secret, "[REDACTED]")
+        sanitized_msg = safe_error_detail(e, fallback="Connection failed")
         logger.error(f"Database health check failed ({db_error_type}): {sanitized_msg}")
 
     storage_status = "connected"
@@ -145,12 +187,7 @@ async def health_db_check():
     except Exception as e:
         status = "unreachable"
         error_type = e.__class__.__name__
-        raw_msg = str(e).splitlines()[0] if str(e) else "Connection error"
-        # Strip any credential strings
-        error_detail = raw_msg
-        for secret in [settings.SECRET_KEY, getattr(settings, "NVIDIA_API_KEY", ""), getattr(settings, "OPENROUTER_API_KEY", "")]:
-            if secret and len(secret) > 4:
-                error_detail = error_detail.replace(secret, "[REDACTED]")
+        error_detail = safe_error_detail(e, fallback="Connection error")
         logger.error(f"Database diagnostic check failed: [{error_type}] {error_detail}")
 
     return {
@@ -200,7 +237,7 @@ async def health_llm_check():
 
 @app.get("/debug/llm-config", tags=["Diagnostics"])
 @app.get(f"{settings.API_V1_STR}/debug/llm-config", tags=["Diagnostics"])
-async def debug_llm_config():
+async def debug_llm_config(_: None = Depends(require_diagnostics_enabled)):
     """
     Diagnostic endpoint returning LLM configuration and key presence.
     Never exposes actual keys or secrets.
@@ -233,7 +270,7 @@ async def debug_llm_config():
 
 @app.get("/debug/llm-provider-path", tags=["Diagnostics"])
 @app.get(f"{settings.API_V1_STR}/debug/llm-provider-path", tags=["Diagnostics"])
-async def debug_llm_provider_path():
+async def debug_llm_provider_path(_: None = Depends(require_diagnostics_enabled)):
     """
     Instantiates the LLM provider through the same centralized factory used by
     the agentic workflow and reports the concrete runtime class and configuration.
@@ -248,18 +285,15 @@ async def debug_llm_provider_path():
 
 @app.get("/debug/routes", tags=["Diagnostics"])
 @app.get(f"{settings.API_V1_STR}/debug/routes", tags=["Diagnostics"])
-async def debug_routes():
+async def debug_routes(_: None = Depends(require_diagnostics_enabled)):
     """
     Diagnostic endpoint returning registered routes and HTTP methods safely.
     NEVER exposes secrets, passwords, tokens, DATABASE_URL, or API keys.
     """
-    routes = []
-    for route in app.routes:
-        if hasattr(route, "methods") and hasattr(route, "path"):
-            routes.append({
-                "path": route.path,
-                "methods": sorted(list(route.methods))
-            })
+    routes = [
+        {"path": path, "methods": methods}
+        for path, methods in iter_route_specs()
+    ]
     return {
         "count": len(routes),
         "routes": routes
@@ -269,6 +303,7 @@ async def debug_routes():
 @app.get("/debug/faculty-profile", tags=["Diagnostics"])
 @app.get(f"{settings.API_V1_STR}/debug/faculty-profile", tags=["Diagnostics"])
 async def debug_faculty_profile(
+    _: None = Depends(require_diagnostics_enabled),
     auth_header: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
     db: AsyncSession = Depends(get_db)
 ):
@@ -321,17 +356,14 @@ async def debug_faculty_profile(
 # =================================================================
 
 @app.get(f"{settings.API_V1_STR}/debug/register-config", tags=["Diagnostics"])
-async def debug_register_config():
+async def debug_register_config(_: None = Depends(require_diagnostics_enabled)):
     """
     Temporary diagnostic endpoint to inspect registration configuration safely.
     NEVER exposes passwords, SECRET_KEY, DATABASE_URL, or API keys.
     """
     from app.models.user import User
     db_info = settings.SAFE_DATABASE_INFO
-    routes_list = []
-    for route in app.routes:
-        if hasattr(route, "methods") and hasattr(route, "path"):
-            routes_list.append(f"{route.path} {sorted(list(route.methods))}")
+    routes_list = [f"{path} {methods}" for path, methods in iter_route_specs()]
 
     return {
         "route_exists": any("/api/auth/register" in r for r in routes_list),
@@ -345,7 +377,7 @@ async def debug_register_config():
 
 
 @app.post(f"{settings.API_V1_STR}/debug/register", tags=["Diagnostics"])
-async def debug_register_trace(payload: dict):
+async def debug_register_trace(payload: dict, _: None = Depends(require_diagnostics_enabled)):
     """
     Temporary diagnostic endpoint that simulates registration step-by-step
     and identifies the exact failing stage without crashing or exposing secrets.
@@ -438,11 +470,7 @@ async def debug_register_trace(payload: dict):
     except Exception as e:
         report["status"] = "failed"
         report["error_type"] = e.__class__.__name__
-        sanitized_err = str(e).splitlines()[0] if str(e) else "Database execution error"
-        for secret in [settings.SECRET_KEY, getattr(settings, "NVIDIA_API_KEY", ""), getattr(settings, "OPENROUTER_API_KEY", "")]:
-            if secret and len(secret) > 4:
-                sanitized_err = sanitized_err.replace(secret, "[REDACTED]")
-        report["error_detail"] = sanitized_err
+        report["error_detail"] = safe_error_detail(e, fallback="Database execution error")
         return report
 
 

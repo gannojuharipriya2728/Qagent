@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.auth import UserCreate, UserLogin, TokenResponse, UserResponse
 from app.schemas.academic import FacultyProfileResponse, FacultyProfileUpdate, CourseResponse
 from app.api.deps import get_current_user
+from app.core.errors import safe_error_detail
 
 logger = logging.getLogger("qagent.auth")
 
@@ -161,7 +162,7 @@ async def get_faculty_profile(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to load faculty profile: {str(exc)}"
+            detail=f"Failed to load faculty profile: {safe_error_detail(exc)}"
         )
 
 @router.put("/faculty/profile", response_model=FacultyProfileResponse)
@@ -235,6 +236,6 @@ async def update_faculty_profile(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update faculty profile: {str(exc)}"
+            detail=f"Failed to update faculty profile: {safe_error_detail(exc)}"
         )
 

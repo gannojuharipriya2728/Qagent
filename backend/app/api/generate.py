@@ -1,11 +1,15 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.errors import safe_error_detail
 from app.schemas.generation import GenerationRequest, GenerationSessionResponse
 from app.services.agents.orchestrator import AgenticGenerationOrchestrator
-from app.api.deps import get_current_user_optional
+from app.api.deps import get_current_user
 from app.models.user import User
+
+logger = logging.getLogger("qagent.generate")
 
 router = APIRouter(prefix="/generate", tags=["Agentic Generation"])
 
@@ -13,9 +17,9 @@ router = APIRouter(prefix="/generate", tags=["Agentic Generation"])
 async def generate_question_paper(
     request: GenerationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user)
 ):
-    user_id = current_user.id if current_user else None
+    user_id = current_user.id
 
     # Server-Side Marks & Section Pattern Validation
     if not request.sections or len(request.sections) == 0:
@@ -57,8 +61,11 @@ async def generate_question_paper(
             duration_seconds=duration,
             steps_log=steps_log
         )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.exception("GENERATION_PIPELINE_FAILED")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Agentic question generation failed: {str(e)}"
+            detail=f"Agentic question generation failed: {safe_error_detail(e)}"
         )

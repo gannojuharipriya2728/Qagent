@@ -4,13 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.academic import Course, Unit, CourseOutcome
 from app.schemas.academic import (
     CourseCreate, CourseUpdate, CourseResponse, UnitCreate, UnitResponse, CourseOutcomeCreate, CourseOutcomeResponse,
     CourseAnalysisResponse, CourseAnalysisApprovalRequest
 )
-from app.api.deps import get_current_user, get_current_user_optional
+from app.api.deps import get_current_user, get_current_user_optional, get_admin_user
 from app.models.user import User
 
 router = APIRouter(prefix="/courses", tags=["Academic Courses"])
@@ -28,7 +29,7 @@ async def list_courses(db: AsyncSession = Depends(get_db)):
 @router.delete("/reset-all")
 async def reset_all_academic_data(
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    _admin: User = Depends(get_admin_user)
 ):
     """
     Deletes all courses, units, outcomes, resources, chunks, question papers, and sessions.

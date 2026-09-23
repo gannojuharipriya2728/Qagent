@@ -15,7 +15,10 @@ from app.services.rag.vector_store import vector_store
 router = APIRouter(prefix="/admin", tags=["Administration"])
 
 @router.get("/stats")
-async def get_system_stats(db: AsyncSession = Depends(get_db)):
+async def get_system_stats(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_admin_user)
+):
     total_users = (await db.execute(select(func.count(User.id)))).scalar_one() or 0
     total_courses = (await db.execute(select(func.count(Course.id)))).scalar_one() or 0
     total_resources = (await db.execute(select(func.count(Resource.id)))).scalar_one() or 0
@@ -38,13 +41,20 @@ async def get_system_stats(db: AsyncSession = Depends(get_db)):
     }
 
 @router.get("/users", response_model=List[UserResponse])
-async def list_users(db: AsyncSession = Depends(get_db)):
+async def list_users(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_admin_user)
+):
     stmt = select(User).order_by(User.id)
     result = await db.execute(stmt)
     return result.scalars().all()
 
 @router.patch("/users/{user_id}/toggle-status")
-async def toggle_user_status(user_id: int, db: AsyncSession = Depends(get_db)):
+async def toggle_user_status(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_admin_user)
+):
     stmt = select(User).where(User.id == user_id)
     user = (await db.execute(stmt)).scalar_one_or_none()
     if not user:
