@@ -156,7 +156,9 @@ class Settings(BaseSettings):
                 origins = [o.strip() for o in raw.split(",") if o.strip()]
         
         default_prod_origins = [
+            "https://qagent-frontend-jxvh.vercel.app",
             "https://qagent-frontend-iota.vercel.app",
+            "https://qagent-131s.vercel.app",
             "https://qagent.vercel.app"
         ]
         

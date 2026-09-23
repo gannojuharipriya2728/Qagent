@@ -68,15 +68,23 @@ app.add_middleware(
     max_age=600,
 )
 
-# Mount Routers
-app.include_router(auth_router, prefix=settings.API_V1_STR)
-app.include_router(faculty_router, prefix=settings.API_V1_STR)
-app.include_router(courses_router, prefix=settings.API_V1_STR)
-app.include_router(resources_router, prefix=settings.API_V1_STR)
-app.include_router(generate_router, prefix=settings.API_V1_STR)
-app.include_router(papers_router, prefix=settings.API_V1_STR)
-app.include_router(admin_router, prefix=settings.API_V1_STR)
-app.include_router(ai_router, prefix=settings.API_V1_STR)
+# Mount Routers (mount both with API_V1_STR and without prefix for flexible serverless routing)
+routers = [
+    auth_router,
+    faculty_router,
+    courses_router,
+    resources_router,
+    generate_router,
+    papers_router,
+    admin_router,
+    ai_router,
+]
+
+for r in routers:
+    app.include_router(r, prefix=settings.API_V1_STR)
+    # Also mount directly without prefix if API_V1_STR is non-empty
+    if settings.API_V1_STR:
+        app.include_router(r)
 
 import logging
 
