@@ -24,6 +24,57 @@ async def list_courses(db: AsyncSession = Depends(get_db)):
     result = await db.execute(stmt)
     return result.scalars().all()
 
+@router.post("/reset-all")
+@router.delete("/reset-all")
+async def reset_all_academic_data(
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """
+    Deletes all courses, units, outcomes, resources, chunks, question papers, and sessions.
+    Preserves user accounts.
+    """
+    from sqlalchemy import text, delete
+    from app.models.paper import QuestionPaper, Question, ValidationResult, GenerationSession
+    from app.models.resource import Resource, ResourceChunk
+    from app.models.academic import Course, Unit, CourseOutcome
+    from app.services.rag.vector_store import vector_store
+
+    try:
+        if settings.IS_POSTGRES:
+            await db.execute(text("TRUNCATE TABLE validation_results, questions, generation_sessions, question_papers, resource_chunks, resources, course_outcomes, units, courses CASCADE"))
+        else:
+            await db.execute(delete(ValidationResult))
+            await db.execute(delete(Question))
+            await db.execute(delete(GenerationSession))
+            await db.execute(delete(QuestionPaper))
+            await db.execute(delete(ResourceChunk))
+            await db.execute(delete(Resource))
+            await db.execute(delete(CourseOutcome))
+            await db.execute(delete(Unit))
+            await db.execute(delete(Course))
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        try:
+            for model in [ValidationResult, Question, GenerationSession, QuestionPaper, ResourceChunk, Resource, CourseOutcome, Unit, Course]:
+                await db.execute(delete(model))
+            await db.commit()
+        except Exception:
+            await db.rollback()
+
+    # Clear vector store
+    try:
+        if hasattr(vector_store, "clear"):
+            vector_store.clear()
+    except Exception:
+        pass
+
+    return {
+        "status": "success",
+        "message": "All courses, syllabus units, course outcomes, resources, and question papers have been cleared. You can now add courses from scratch."
+    }
+
 @router.post("", response_model=CourseResponse)
 async def create_course(
     course_in: CourseCreate,
@@ -424,56 +475,4 @@ async def delete_course(
     await db.commit()
     return {"message": f"Course '{course.name}' deleted successfully."}
 
-@router.post("/reset-all")
-async def reset_all_academic_data(
-    db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user_optional)
-):
-    """
-    Deletes all courses, units, outcomes, resources, chunks, question papers, and sessions.
-    Preserves user accounts.
-    """
-    from sqlalchemy import text, delete
-    from app.models.paper import QuestionPaper, Question, ValidationResult, GenerationSession
-    from app.models.resource import Resource, ResourceChunk
-    from app.models.academic import Course, Unit, CourseOutcome
-    from app.services.rag.vector_store import vector_store
-
-    try:
-        if settings.IS_POSTGRES:
-            await db.execute(text("TRUNCATE TABLE validation_results, questions, generation_sessions, question_papers, resource_chunks, resources, course_outcomes, units, courses CASCADE"))
-        else:
-            await db.execute(delete(ValidationResult))
-            await db.execute(delete(Question))
-            await db.execute(delete(GenerationSession))
-            await db.execute(delete(QuestionPaper))
-            await db.execute(delete(ResourceChunk))
-            await db.execute(delete(Resource))
-            await db.execute(delete(CourseOutcome))
-            await db.execute(delete(Unit))
-            await db.execute(delete(Course))
-        await db.commit()
-    except Exception as exc:
-        logger.error(f"Error executing truncate/delete: {exc}")
-        await db.rollback()
-        # Fallback delete
-        try:
-            for model in [ValidationResult, Question, GenerationSession, QuestionPaper, ResourceChunk, Resource, CourseOutcome, Unit, Course]:
-                await db.execute(delete(model))
-            await db.commit()
-        except Exception as inner_exc:
-            logger.error(f"Fallback delete failed: {inner_exc}")
-            await db.rollback()
-
-    # Clear vector store
-    try:
-        if hasattr(vector_store, "clear"):
-            vector_store.clear()
-    except Exception:
-        pass
-
-    return {
-        "status": "success",
-        "message": "All courses, syllabus units, course outcomes, resources, and question papers have been cleared. You can now add courses from scratch."
-    }
 
