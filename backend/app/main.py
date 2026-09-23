@@ -83,6 +83,7 @@ import logging
 logger = logging.getLogger("qagent.main")
 
 @app.get("/", tags=["Health"])
+@app.get("/index.html", tags=["Health"], include_in_schema=False)
 async def root_status():
     """
     Root entrypoint for Vercel deployment verification.
