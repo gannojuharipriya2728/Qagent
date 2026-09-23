@@ -21,31 +21,20 @@ from app.services.llm.factory import get_llm_provider
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # In development/test environments, auto-create tables if missing.
-    if settings.ENVIRONMENT.lower() != "production":
+    # Ensure tables exist safely
+    try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-    else:
-        # In production, automatically apply Alembic migrations to keep Neon PostgreSQL schema in sync
-        try:
-            from alembic.config import Config
-            from alembic import command
-            import asyncio
-            from pathlib import Path
-            root_dir = Path(__file__).resolve().parent.parent.parent
-            ini_path = root_dir / "alembic.ini"
-            if ini_path.exists():
-                alembic_cfg = Config(str(ini_path))
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, lambda: command.upgrade(alembic_cfg, "head"))
-                logger.info("DATABASE_MIGRATION_AUTO_UPGRADE_COMPLETE")
-        except Exception as m_err:
-            logger.warning(f"Production startup migration check warning: {m_err}")
+    except Exception as e:
+        logger.warning(f"Startup table creation warning: {e}")
 
-    # Seed demo academic data only if explicitly enabled in non-production
-    if settings.SEED_DEMO_DATA and settings.ENVIRONMENT.lower() != "production":
-        async with AsyncSessionLocal() as session:
-            await seed_database(session)
+    # Seed demo academic data only if explicitly enabled in environment
+    if settings.SEED_DEMO_DATA:
+        try:
+            async with AsyncSessionLocal() as session:
+                await seed_database(session)
+        except Exception as e:
+            logger.warning(f"Demo seed warning: {e}")
 
     yield
 
