@@ -1,6 +1,5 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "version": 2,
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
@@ -9,32 +8,8 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/(.*)",
       "destination": "/api/index.py"
-    },
-    {
-      "source": "/health",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/health/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/docs",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/openapi.json",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/debug/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/((?!api/|health|docs|openapi.json|debug).*)",
-      "destination": "/index.html"
     }
   ]
 }
