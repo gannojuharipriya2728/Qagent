@@ -207,10 +207,28 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "20"))
     
     STORAGE_PROVIDER: str = os.getenv("STORAGE_PROVIDER", "local")  # "local", "s3"
-    STORAGE_DIR: str = os.getenv("STORAGE_DIR", "/tmp/qagent/uploads" if os.getenv("VERCEL") else "./data/uploads")
-    EXPORTS_DIR: str = os.getenv("EXPORTS_DIR", "/tmp/qagent/exports" if os.getenv("VERCEL") else "./data/exports")
-    VECTOR_STORAGE_DIR: str = os.getenv("VECTOR_STORAGE_DIR", "/tmp/qagent/vector_store" if os.getenv("VERCEL") else "./data/vector_store")
+    _storage_dir: str = os.getenv("STORAGE_DIR", "./data/uploads")
+    _exports_dir: str = os.getenv("EXPORTS_DIR", "./data/exports")
+    _vector_storage_dir: str = os.getenv("VECTOR_STORAGE_DIR", "./data/vector_store")
     VECTOR_STORE_PROVIDER: str = os.getenv("VECTOR_STORE_PROVIDER", "local")  # "local", "pgvector"
+
+    @property
+    def STORAGE_DIR(self) -> str:
+        if os.getenv("VERCEL"):
+            return "/tmp/qagent/uploads"
+        return self._storage_dir
+
+    @property
+    def EXPORTS_DIR(self) -> str:
+        if os.getenv("VERCEL"):
+            return "/tmp/qagent/exports"
+        return self._exports_dir
+
+    @property
+    def VECTOR_STORAGE_DIR(self) -> str:
+        if os.getenv("VERCEL"):
+            return "/tmp/qagent/vector_store"
+        return self._vector_storage_dir
     
     # S3 Object Storage Configuration (for STORAGE_PROVIDER="s3")
     S3_ENDPOINT_URL: str = os.getenv("S3_ENDPOINT_URL", "")
@@ -229,6 +247,8 @@ class Settings(BaseSettings):
     @property
     def RESOLVED_DATABASE_URL(self) -> str:
         raw_url = (self.DATABASE_URL or "").strip()
+        if os.getenv("VERCEL") and ("sqlite" in raw_url.lower() or not raw_url):
+            return "sqlite+aiosqlite:////tmp/academic_rag.db"
         if self.ENVIRONMENT.lower() == "production":
             if not raw_url or "sqlite" in raw_url.lower():
                 if os.getenv("VERCEL"):
