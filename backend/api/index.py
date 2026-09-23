@@ -9,7 +9,25 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 # Import the main FastAPI application instance
-from app.main import app
+from app.main import app as fastapi_app
 
-# Vercel serverless function entrypoint
+async def app(scope, receive, send):
+    if scope.get("type") in ("http", "websocket"):
+        path = scope.get("path", "")
+        # Normalize any serverless file prefix injected by Vercel ASGI
+        for prefix in ["/api/index.py", "/index.py", "/api/index", "/index"]:
+            if path.startswith(prefix):
+                path = path[len(prefix):]
+                break
+        
+        if not path:
+            path = "/"
+        elif not path.startswith("/"):
+            path = "/" + path
+            
+        scope["path"] = path
+        scope["raw_path"] = path.encode("ascii")
+
+    await fastapi_app(scope, receive, send)
+
 __all__ = ["app"]
