@@ -69,7 +69,19 @@ AsyncSessionLocal = async_sessionmaker(
 
 Base = declarative_base()
 
+_tables_initialized = False
+
 async def get_db():
+    global _tables_initialized
+    if not _tables_initialized:
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        except Exception as e:
+            logger.warning(f"Lazy table creation notice: {e}")
+        finally:
+            _tables_initialized = True
+
     async with AsyncSessionLocal() as session:
         try:
             yield session

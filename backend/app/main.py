@@ -21,21 +21,6 @@ from app.services.llm.factory import get_llm_provider
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure tables exist safely
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-    except Exception as e:
-        logger.warning(f"Startup table creation warning: {e}")
-
-    # Seed demo academic data only if explicitly enabled in environment
-    if settings.SEED_DEMO_DATA:
-        try:
-            async with AsyncSessionLocal() as session:
-                await seed_database(session)
-        except Exception as e:
-            logger.warning(f"Demo seed warning: {e}")
-
     yield
 
 app = FastAPI(
