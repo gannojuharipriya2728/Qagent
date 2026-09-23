@@ -14,7 +14,7 @@ class NvidiaProvider(BaseLLMProvider):
     NVIDIA NIM API Provider.
     Directly interfaces with NVIDIA's API endpoint (https://integrate.api.nvidia.com/v1/chat/completions)
     for high-speed, grounded question generation using models such as
-    nvidia/nemotron-3.5-lightning-30b-a3b.
+    nvidia/nemotron-3.5-lightning:free.
     """
     def __init__(
         self,

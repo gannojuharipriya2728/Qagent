@@ -53,7 +53,7 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL
-        value: nvidia/nemotron-3.5-lightning-30b-a3b
+        value: nvidia/nemotron-3.5-lightning:free
       - key: OPENROUTER_BASE_URL
         value: https://openrouter.ai/api/v1
       - key: OPENROUTER_SITE_URL

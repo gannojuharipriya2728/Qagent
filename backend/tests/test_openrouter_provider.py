@@ -34,6 +34,27 @@ async def test_openrouter_provider_missing_key_error():
     assert "OPENROUTER_API_KEY is required" in str(exc.value) or "OpenRouter" in str(exc.value)
 
 @pytest.mark.asyncio
+async def test_openrouter_provider_missing_model_error():
+    with pytest.raises(ValueError) as exc:
+        OpenRouterProvider(api_key="test-key", model="")
+    assert "OPENROUTER_MODEL is required" in str(exc.value)
+
+@pytest.mark.asyncio
+async def test_openrouter_provider_handles_400_error():
+    provider = OpenRouterProvider(api_key="mock-openrouter-key", model="nvidia/nemotron-3.5-lightning:free")
+    mock_resp_400 = MagicMock()
+    mock_resp_400.status_code = 400
+    mock_resp_400.text = '{"error": {"message": "Invalid model", "code": 400}}'
+    
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp_400
+        with pytest.raises(ValueError) as exc:
+            await provider.generate_text("Test prompt")
+        assert "OpenRouter API Error (400)" in str(exc.value)
+        assert "Invalid model" in str(exc.value)
+        assert "mock-openrouter-key" not in str(exc.value)
+
+@pytest.mark.asyncio
 async def test_openrouter_provider_generate_text_mock():
     provider = OpenRouterProvider(
         api_key="mock-openrouter-key",
@@ -136,25 +157,25 @@ async def test_openrouter_provider_429_retry_handling():
 def test_llm_factory_openrouter_provider_selection():
     with patch.object(settings, "LLM_PROVIDER", "openrouter"):
         with patch.object(settings, "OPENROUTER_API_KEY", "test-or-key"):
-            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free"):
                 with patch.object(settings, "NVIDIA_API_KEY", ""):
                     provider = get_llm_provider()
                     assert isinstance(provider, OpenRouterProvider)
                     assert provider.api_key == "test-or-key"
-                    assert provider.model == "nvidia/nemotron-3.5-lightning-30b-a3b"
+                    assert provider.model == "nvidia/nemotron-3.5-lightning:free"
 
 def test_llm_factory_openrouter_with_nemotron_model_never_requires_nvidia_key():
     """
-    Ensure that passing 'nvidia/nemotron-3.5-lightning-30b-a3b' to OpenRouter
+    Ensure that passing 'nvidia/nemotron-3.5-lightning:free' to OpenRouter
     does NOT trigger NvidiaProvider and does NOT require NVIDIA_API_KEY.
     """
     with patch.object(settings, "LLM_PROVIDER", "openrouter"):
         with patch.object(settings, "OPENROUTER_API_KEY", "test-secret-key"):
-            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free"):
                 with patch.object(settings, "NVIDIA_API_KEY", ""):
                     provider = get_llm_provider()
                     assert isinstance(provider, OpenRouterProvider)
-                    assert provider.model == "nvidia/nemotron-3.5-lightning-30b-a3b"
+                    assert provider.model == "nvidia/nemotron-3.5-lightning:free"
                     assert provider.endpoint == "https://openrouter.ai/api/v1/chat/completions"
 
 def test_llm_factory_nvidia_only_selected_when_explicit():
@@ -298,18 +319,18 @@ async def test_agent3_provider_resolution_is_openrouter_provider():
     """
     Requirement 10: Provider resolution used by Agent 3 with:
     LLM_PROVIDER=openrouter
-    OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+    OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
     NVIDIA_API_KEY=""
     Assert provider.__class__.__name__ == "OpenRouterProvider"
     """
     with patch.object(settings, "LLM_PROVIDER", "openrouter"):
         with patch.object(settings, "OPENROUTER_API_KEY", "sk-or-v1-mock-key"):
-            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free"):
                 with patch.object(settings, "NVIDIA_API_KEY", ""):
                     provider = get_llm_provider()
                     assert provider.__class__.__name__ == "OpenRouterProvider"
                     assert provider.provider_name == "openrouter"
-                    assert provider.model == "nvidia/nemotron-3.5-lightning-30b-a3b"
+                    assert provider.model == "nvidia/nemotron-3.5-lightning:free"
 
 
 @pytest.mark.asyncio
@@ -317,12 +338,12 @@ async def test_openrouter_request_payload_and_authorization():
     """
     Requirement 11: Mock POST https://openrouter.ai/api/v1/chat/completions
     Verify Authorization = Bearer OPENROUTER_API_KEY
-    JSON contains "model": "nvidia/nemotron-3.5-lightning-30b-a3b"
+    JSON contains "model": "nvidia/nemotron-3.5-lightning:free"
     Verify request is NOT sent to a direct NVIDIA endpoint.
     """
     provider = OpenRouterProvider(
         api_key="sk-or-v1-my-secret-key",
-        model="nvidia/nemotron-3.5-lightning-30b-a3b",
+        model="nvidia/nemotron-3.5-lightning:free",
         base_url="https://openrouter.ai/api/v1"
     )
 
@@ -351,7 +372,7 @@ async def test_openrouter_request_payload_and_authorization():
         assert call_headers["Authorization"] == "Bearer sk-or-v1-my-secret-key"
 
         # Assert payload contains Nemotron model
-        assert call_json["model"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+        assert call_json["model"] == "nvidia/nemotron-3.5-lightning:free"
 
 
 @pytest.mark.asyncio
@@ -403,7 +424,7 @@ async def test_agent3_to_openrouter_generation_flow():
 
     with patch.object(settings, "LLM_PROVIDER", "openrouter"):
         with patch.object(settings, "OPENROUTER_API_KEY", "sk-or-v1-valid-key"):
-            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free"):
                 with patch.object(settings, "NVIDIA_API_KEY", ""):
                     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
                         mock_post.return_value = mock_resp
@@ -430,7 +451,7 @@ async def test_debug_llm_endpoints():
 
     with patch.object(settings, "LLM_PROVIDER", "openrouter"):
         with patch.object(settings, "OPENROUTER_API_KEY", "sk-or-test-key"):
-            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"):
+            with patch.object(settings, "OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free"):
                 with patch.object(settings, "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"):
                     with patch.object(settings, "NVIDIA_API_KEY", ""):
                         transport = ASGITransport(app=app)
@@ -441,7 +462,7 @@ async def test_debug_llm_endpoints():
                             data_cfg = resp_cfg.json()
                             assert data_cfg["configured_provider"] == "openrouter"
                             assert data_cfg["resolved_provider"] == "openrouter"
-                            assert data_cfg["model"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+                            assert data_cfg["model"] == "nvidia/nemotron-3.5-lightning:free"
                             assert data_cfg["base_url"] == "https://openrouter.ai/api/v1"
                             assert data_cfg["openrouter_key_configured"] is True
                             assert data_cfg["nvidia_key_configured"] is False
@@ -452,6 +473,6 @@ async def test_debug_llm_endpoints():
                             data_path = resp_path.json()
                             assert data_path["provider_class"] == "OpenRouterProvider"
                             assert data_path["provider"] == "openrouter"
-                            assert data_path["model"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+                            assert data_path["model"] == "nvidia/nemotron-3.5-lightning:free"
 
 

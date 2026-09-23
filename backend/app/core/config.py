@@ -236,12 +236,12 @@ class Settings(BaseSettings):
     # LLM Settings (OpenRouter Primary Provider / NVIDIA Alternate)
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openrouter")  # "openrouter", "nvidia", "ollama", "deterministic"
     NVIDIA_API_KEY: str = os.getenv("NVIDIA_API_KEY", "")
-    NVIDIA_MODEL: str = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+    NVIDIA_MODEL: str = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3.5-lightning:free")
     NVIDIA_BASE_URL: str = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
     
     # OpenRouter LLM Settings (Primary API Gateway)
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free")
     OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     OPENROUTER_SITE_URL: str = os.getenv("OPENROUTER_SITE_URL", "https://qagent.vercel.app")
     OPENROUTER_APP_NAME: str = os.getenv("OPENROUTER_APP_NAME", "QAgent")

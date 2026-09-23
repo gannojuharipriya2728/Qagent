@@ -32,9 +32,18 @@ class OpenRouterProvider(BaseLLMProvider):
             raise ValueError(
                 "OPENROUTER_API_KEY is required for OpenRouterProvider."
             )
+        resolved_model = (
+            model
+            if model is not None
+            else settings.OPENROUTER_MODEL
+        )
+        if not resolved_model or not resolved_model.strip():
+            raise ValueError(
+                "OPENROUTER_MODEL is required for OpenRouterProvider."
+            )
         self.provider_name = "openrouter"
         self.api_key = resolved_api_key.strip()
-        self.model = model or settings.OPENROUTER_MODEL
+        self.model = resolved_model.strip()
         self.base_url = (base_url or settings.OPENROUTER_BASE_URL).rstrip("/")
         self.site_url = site_url or settings.OPENROUTER_SITE_URL
         self.app_name = app_name or settings.OPENROUTER_APP_NAME
@@ -44,6 +53,10 @@ class OpenRouterProvider(BaseLLMProvider):
         if not self.api_key or not self.api_key.strip():
             raise ValueError(
                 "OPENROUTER_API_KEY is required for OpenRouterProvider."
+            )
+        if not self.model or not self.model.strip():
+            raise ValueError(
+                "OPENROUTER_MODEL is required for OpenRouterProvider."
             )
 
     def _get_headers(self) -> Dict[str, str]:

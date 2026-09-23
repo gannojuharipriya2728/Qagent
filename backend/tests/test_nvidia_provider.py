@@ -11,11 +11,11 @@ from app.main import app
 def test_nvidia_provider_initialization():
     provider = NvidiaProvider(
         api_key="test-key-12345",
-        model="nvidia/nemotron-3.5-lightning-30b-a3b",
+        model="nvidia/nemotron-3.5-lightning:free",
         base_url="https://integrate.api.nvidia.com/v1"
     )
     assert provider.api_key == "test-key-12345"
-    assert provider.model == "nvidia/nemotron-3.5-lightning-30b-a3b"
+    assert provider.model == "nvidia/nemotron-3.5-lightning:free"
     assert provider.base_url == "https://integrate.api.nvidia.com/v1"
     assert provider.endpoint == "https://integrate.api.nvidia.com/v1/chat/completions"
 
@@ -35,7 +35,7 @@ def test_nvidia_provider_headers():
 async def test_nvidia_provider_generate_text_mock():
     provider = NvidiaProvider(
         api_key="test-key",
-        model="nvidia/nemotron-3.5-lightning-30b-a3b",
+        model="nvidia/nemotron-3.5-lightning:free",
         base_url="https://integrate.api.nvidia.com/v1"
     )
 
@@ -57,7 +57,7 @@ async def test_nvidia_provider_generate_text_mock():
         assert "Public Key Infrastructure" in result
         mock_post.assert_called_once()
         args, kwargs = mock_post.call_args
-        assert kwargs["json"]["model"] == "nvidia/nemotron-3.5-lightning-30b-a3b"
+        assert kwargs["json"]["model"] == "nvidia/nemotron-3.5-lightning:free"
 
 @pytest.mark.asyncio
 async def test_nvidia_provider_generate_json_mock():

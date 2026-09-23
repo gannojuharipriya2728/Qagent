@@ -71,14 +71,14 @@ VECTOR_STORAGE_DIR=./data/vector_store
 # =================================================================
 LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-your-live-production-key
-OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_SITE_URL=https://qagent.vercel.app
 OPENROUTER_APP_NAME=QAgent
 
 # Alternative Direct NVIDIA NIM Provider (Optional)
 NVIDIA_API_KEY=nvapi-your-live-production-key
-NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+NVIDIA_MODEL=nvidia/nemotron-3.5-lightning:free
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 
 # =================================================================
@@ -186,8 +186,8 @@ Response:
   "database": "connected",
   "storage_provider": "s3",
   "storage": "connected",
-  "llm_provider": "nvidia",
-  "llm_model": "nvidia/nemotron-3.5-lightning-30b-a3b"
+  "llm_provider": "openrouter",
+  "llm_model": "nvidia/nemotron-3.5-lightning:free"
 }
 ```
 
