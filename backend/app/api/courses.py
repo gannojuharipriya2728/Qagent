@@ -457,7 +457,11 @@ async def reset_all_academic_data(
     await db.commit()
 
     # 4. Clear vector store
-    vector_store.clear()
+    try:
+        if hasattr(vector_store, "clear"):
+            vector_store.clear()
+    except Exception:
+        pass
 
     return {
         "status": "success",

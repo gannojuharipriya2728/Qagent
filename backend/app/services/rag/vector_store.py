@@ -145,6 +145,10 @@ class AcademicVectorStore(BaseVectorStore):
         if keys_to_delete:
             self._save_to_disk()
 
+    def clear(self):
+        self.documents.clear()
+        self._save_to_disk()
+
     async def _hydrate_course_chunks_from_db(self, course_id: int):
         """
         Dynamically hydrates in-memory vector store from PostgreSQL ResourceChunk records
