@@ -98,6 +98,7 @@ async def root_status():
     }
 
 @app.get("/health", tags=["Health"])
+@app.get("/api/health", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health", tags=["Health"])
 async def health_check():
     db_status = "connected"
@@ -143,6 +144,7 @@ async def health_check():
     }
 
 @app.get("/health/db", tags=["Health"])
+@app.get("/api/health/db", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health/db", tags=["Health"])
 async def health_db_check():
     """
@@ -182,6 +184,7 @@ async def health_db_check():
 
 
 @app.get("/health/llm", tags=["Health"])
+@app.get("/api/health/llm", tags=["Health"])
 @app.get(f"{settings.API_V1_STR}/health/llm", tags=["Health"])
 async def health_llm_check():
     """

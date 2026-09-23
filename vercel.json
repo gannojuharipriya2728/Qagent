@@ -1,6 +1,5 @@
 {
-  "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
@@ -14,11 +13,11 @@
       "destination": "/api/index.py"
     },
     {
-      "source": "/health/(.*)",
+      "source": "/health",
       "destination": "/api/index.py"
     },
     {
-      "source": "/health",
+      "source": "/health/(.*)",
       "destination": "/api/index.py"
     },
     {
@@ -34,7 +33,7 @@
       "destination": "/api/index.py"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/|health|docs|openapi.json|debug).*)",
       "destination": "/index.html"
     }
   ]
