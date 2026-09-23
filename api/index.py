@@ -2,16 +2,23 @@ import os
 import sys
 from pathlib import Path
 
-# Add backend directory to sys.path so app modules are discoverable
-ROOT_DIR = Path(__file__).resolve().parent.parent
-BACKEND_DIR = ROOT_DIR / "backend"
+# Add all candidate paths to sys.path so 'app' and 'backend' are discoverable
+curr_dir = Path(__file__).resolve().parent
+candidates = [
+    curr_dir,
+    curr_dir.parent,
+    curr_dir.parent / "backend",
+    curr_dir.parent.parent,
+    curr_dir.parent.parent / "backend",
+]
 
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(BACKEND_DIR))
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+for p in candidates:
+    if p.exists() and str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
-# Import the main FastAPI application instance directly
-from app.main import app
+try:
+    from app.main import app
+except ImportError:
+    from backend.app.main import app
 
 __all__ = ["app"]
