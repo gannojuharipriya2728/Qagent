@@ -199,7 +199,7 @@ export const CreateCourseModal: React.FC<CreateCourseModalProps> = ({
     // Check duplicate locally
     const duplicate = existingCourses.find(c => c.code.toUpperCase() === cleanCode);
     if (duplicate) {
-      setErrorMessage(`Subject with ID '${cleanCode}' is already registered (${duplicate.name}). You can select it directly from your curriculum list or use a unique Subject ID (e.g. ${cleanCode}-B).`);
+      setErrorMessage(`Subject with code '${cleanCode}' is already registered (${duplicate.name}). You can click 'Overwrite Course' below or wipe all courses to start from scratch.`);
       setActiveTab('basic');
       return;
     }
@@ -255,6 +255,68 @@ export const CreateCourseModal: React.FC<CreateCourseModalProps> = ({
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       setErrorMessage(typeof detail === 'string' ? detail : 'Failed to create course. Please verify inputs.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOverwriteCourse = async () => {
+    const cleanCode = code.trim().toUpperCase();
+    const cleanName = name.trim();
+    if (!cleanCode || !cleanName) return;
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    const payload: CourseCreate = {
+      code: cleanCode,
+      name: cleanName,
+      department: department.trim() || 'Computer Science & Engineering',
+      semester: semester.trim() || 'Semester V',
+      academic_year: academicYear.trim() || '2025-2026',
+      description: description.trim() || `${cleanName} academic curriculum and assessment syllabus.`,
+      units: units.map(u => ({
+        unit_number: u.unit_number,
+        title: u.title.trim(),
+        topics: u.topics.trim()
+      })),
+      course_outcomes: courseOutcomes.map(co => ({
+        code: co.code.trim().toUpperCase(),
+        description: co.description.trim(),
+        target_bloom_level: co.target_bloom_level || 'Apply'
+      }))
+    };
+
+    try {
+      const response = await api.post('/courses?overwrite=true', payload);
+      setSuccessMessage(`Course '${cleanCode}' updated & overwritten successfully!`);
+      setTimeout(() => {
+        onCourseCreated(response.data);
+        onClose();
+      }, 700);
+    } catch (err: any) {
+      setErrorMessage(err.response?.data?.detail || 'Failed to overwrite course.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetAllData = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL courses, syllabus units, uploaded resources, and generated papers from the database to start completely fresh? (Your user account will be preserved)')) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      await api.post('/courses/reset-all');
+      setSuccessMessage('Database cleared! All previous courses and papers wiped clean.');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (err: any) {
+      setErrorMessage(err.response?.data?.detail || 'Failed to reset database.');
     } finally {
       setIsSubmitting(false);
     }
@@ -347,9 +409,31 @@ export const CreateCourseModal: React.FC<CreateCourseModalProps> = ({
 
         {/* Feedback Messages */}
         {errorMessage && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMessage}</span>
+          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl font-medium space-y-2">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span className="font-semibold">{errorMessage}</span>
+            </div>
+            {(errorMessage.toLowerCase().includes('already registered') || errorMessage.toLowerCase().includes('already exists')) && (
+              <div className="flex flex-wrap gap-2 pt-1 border-t border-rose-200/60">
+                <button
+                  type="button"
+                  onClick={handleOverwriteCourse}
+                  disabled={isSubmitting}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-[11px] shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  ⚡ Overwrite & Save Course Details
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetAllData}
+                  disabled={isSubmitting}
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold text-[11px] shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  🗑️ Wipe All Database Data
+                </button>
+              </div>
+            )}
           </div>
         )}
 

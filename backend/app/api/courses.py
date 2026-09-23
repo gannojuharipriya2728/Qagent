@@ -27,20 +27,67 @@ async def list_courses(db: AsyncSession = Depends(get_db)):
 @router.post("", response_model=CourseResponse)
 async def create_course(
     course_in: CourseCreate,
+    overwrite: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    stmt = select(Course).where(Course.code == course_in.code)
+    stmt = select(Course).options(
+        selectinload(Course.units),
+        selectinload(Course.course_outcomes)
+    ).where(Course.code == course_in.code.strip())
     existing = (await db.execute(stmt)).scalar_one_or_none()
+    
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Course with code '{course_in.code}' already exists."
-        )
+        if overwrite:
+            existing.name = course_in.name.strip()
+            if course_in.department:
+                existing.department = course_in.department.strip()
+            if course_in.semester:
+                existing.semester = course_in.semester.strip()
+            if course_in.academic_year:
+                existing.academic_year = course_in.academic_year.strip()
+            if course_in.description is not None:
+                existing.description = course_in.description
+
+            for u in existing.units:
+                await db.delete(u)
+            for co in existing.course_outcomes:
+                await db.delete(co)
+            await db.flush()
+
+            for u in course_in.units:
+                unit = Unit(
+                    course_id=existing.id,
+                    unit_number=u.unit_number,
+                    title=u.title,
+                    topics=u.topics
+                )
+                db.add(unit)
+
+            for co in course_in.course_outcomes:
+                co_item = CourseOutcome(
+                    course_id=existing.id,
+                    code=co.code,
+                    description=co.description,
+                    target_bloom_level=co.target_bloom_level or "Apply"
+                )
+                db.add(co_item)
+
+            await db.commit()
+            stmt_reload = select(Course).options(
+                selectinload(Course.units),
+                selectinload(Course.course_outcomes)
+            ).where(Course.id == existing.id)
+            return (await db.execute(stmt_reload)).scalar_one()
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Course with code '{course_in.code}' already exists."
+            )
 
     course = Course(
-        code=course_in.code,
-        name=course_in.name,
+        code=course_in.code.strip(),
+        name=course_in.name.strip(),
         department=course_in.department,
         semester=course_in.semester,
         academic_year=course_in.academic_year,
@@ -376,3 +423,44 @@ async def delete_course(
     await db.delete(course)
     await db.commit()
     return {"message": f"Course '{course.name}' deleted successfully."}
+
+@router.post("/reset-all")
+async def reset_all_academic_data(
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """
+    Deletes all courses, units, outcomes, resources, chunks, question papers, and sessions.
+    Preserves user accounts.
+    """
+    from sqlalchemy import delete
+    from app.models.paper import QuestionPaper, Question, ValidationResult, GenerationSession
+    from app.models.resource import Resource, ResourceChunk
+    from app.models.academic import Course, Unit, CourseOutcome
+    from app.services.rag.vector_store import vector_store
+
+    # 1. Delete all papers and sessions
+    await db.execute(delete(ValidationResult))
+    await db.execute(delete(Question))
+    await db.execute(delete(GenerationSession))
+    await db.execute(delete(QuestionPaper))
+
+    # 2. Delete all resources and chunks
+    await db.execute(delete(ResourceChunk))
+    await db.execute(delete(Resource))
+
+    # 3. Delete all course outcomes, units, and courses
+    await db.execute(delete(CourseOutcome))
+    await db.execute(delete(Unit))
+    await db.execute(delete(Course))
+
+    await db.commit()
+
+    # 4. Clear vector store
+    vector_store.clear()
+
+    return {
+        "status": "success",
+        "message": "All courses, syllabus units, course outcomes, resources, and question papers have been cleared. You can now add courses from scratch."
+    }
+

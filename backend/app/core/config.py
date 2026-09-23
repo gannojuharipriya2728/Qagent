@@ -131,7 +131,7 @@ class Settings(BaseSettings):
     
     # Environment & Deployment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
-    SEED_DEMO_DATA: bool = os.getenv("SEED_DEMO_DATA", "false" if os.getenv("ENVIRONMENT") == "production" else "true").lower() in ["true", "1", "yes"]
+    SEED_DEMO_DATA: bool = os.getenv("SEED_DEMO_DATA", "false").lower() in ["true", "1", "yes"]
     
     # Security
     SECRET_KEY: str = "agentic-ai-academic-rag-secret-key-2026-super-secure"
