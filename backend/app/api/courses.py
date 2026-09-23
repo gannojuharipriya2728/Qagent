@@ -433,30 +433,39 @@ async def reset_all_academic_data(
     Deletes all courses, units, outcomes, resources, chunks, question papers, and sessions.
     Preserves user accounts.
     """
-    from sqlalchemy import delete
+    from sqlalchemy import text, delete
     from app.models.paper import QuestionPaper, Question, ValidationResult, GenerationSession
     from app.models.resource import Resource, ResourceChunk
     from app.models.academic import Course, Unit, CourseOutcome
     from app.services.rag.vector_store import vector_store
 
-    # 1. Delete all papers and sessions
-    await db.execute(delete(ValidationResult))
-    await db.execute(delete(Question))
-    await db.execute(delete(GenerationSession))
-    await db.execute(delete(QuestionPaper))
+    try:
+        if settings.IS_POSTGRES:
+            await db.execute(text("TRUNCATE TABLE validation_results, questions, generation_sessions, question_papers, resource_chunks, resources, course_outcomes, units, courses CASCADE"))
+        else:
+            await db.execute(delete(ValidationResult))
+            await db.execute(delete(Question))
+            await db.execute(delete(GenerationSession))
+            await db.execute(delete(QuestionPaper))
+            await db.execute(delete(ResourceChunk))
+            await db.execute(delete(Resource))
+            await db.execute(delete(CourseOutcome))
+            await db.execute(delete(Unit))
+            await db.execute(delete(Course))
+        await db.commit()
+    except Exception as exc:
+        logger.error(f"Error executing truncate/delete: {exc}")
+        await db.rollback()
+        # Fallback delete
+        try:
+            for model in [ValidationResult, Question, GenerationSession, QuestionPaper, ResourceChunk, Resource, CourseOutcome, Unit, Course]:
+                await db.execute(delete(model))
+            await db.commit()
+        except Exception as inner_exc:
+            logger.error(f"Fallback delete failed: {inner_exc}")
+            await db.rollback()
 
-    # 2. Delete all resources and chunks
-    await db.execute(delete(ResourceChunk))
-    await db.execute(delete(Resource))
-
-    # 3. Delete all course outcomes, units, and courses
-    await db.execute(delete(CourseOutcome))
-    await db.execute(delete(Unit))
-    await db.execute(delete(Course))
-
-    await db.commit()
-
-    # 4. Clear vector store
+    # Clear vector store
     try:
         if hasattr(vector_store, "clear"):
             vector_store.clear()
