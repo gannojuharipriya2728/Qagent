@@ -1,4 +1,7 @@
+import re
+import unicodedata
 from typing import List, Optional, Dict, Any
+from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,7 +13,7 @@ from app.models.academic import Course, Unit, CourseOutcome
 from app.schemas.paper import (
     QuestionPaperResponse, QuestionSchema, QuestionUpdateRequest, QuestionRegenerateRequest, PaperAnalyticsResponse
 )
-from app.api.deps import get_current_user_optional, get_current_user
+from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.agents.retrieval_agent import RAGRetrievalAgent
 from app.services.agents.generation_agent import QuestionGenerationAgent
@@ -19,6 +22,8 @@ from app.services.agents.requirement_agent import PlannedQuestionSlot
 
 import logging
 logger = logging.getLogger("qagent.papers")
+
+router = APIRouter(prefix="/papers", tags=["Question Papers"])
 
 @router.get("", response_model=List[QuestionPaperResponse])
 async def list_papers(course_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
@@ -162,7 +167,7 @@ async def update_question(
     question_id: int,
     update_in: QuestionUpdateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user)
 ):
     stmt = select(Question).where(Question.id == question_id, Question.paper_id == paper_id)
     question = (await db.execute(stmt)).scalar_one_or_none()
@@ -191,7 +196,7 @@ async def regenerate_single_question(
     question_id: int,
     regen_in: QuestionRegenerateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user)
 ):
     stmt = select(Question).where(Question.id == question_id, Question.paper_id == paper_id)
     question = (await db.execute(stmt)).scalar_one_or_none()
@@ -244,21 +249,36 @@ async def export_paper_pdf(paper_id: int, db: AsyncSession = Depends(get_db)):
     paper_res = await get_paper(paper_id=paper_id, db=db)
     
     pdf_bytes = QuestionPaperPDFGenerator.generate_pdf(paper_res)
-    safe_filename = f"{paper_res['course_code']}_{paper_res['title'].replace(' ', '_')}.pdf"
-    
+    raw_filename = f"{paper_res['course_code']}_{paper_res['title'].replace(' ', '_')}.pdf"
+
+    # HTTP headers are latin-1; titles routinely contain em dashes and other
+    # non-ASCII punctuation, which would otherwise raise UnicodeEncodeError while
+    # building the response. Send an ASCII-safe name plus the RFC 5987 form that
+    # browsers prefer when present.
+    ascii_filename = unicodedata.normalize("NFKD", raw_filename).encode("ascii", "ignore").decode("ascii")
+    ascii_filename = re.sub(r'[^A-Za-z0-9._-]', "_", ascii_filename).strip("._") or f"question_paper_{paper_id}.pdf"
+    if not ascii_filename.lower().endswith(".pdf"):
+        ascii_filename += ".pdf"
+    encoded_filename = quote(raw_filename, safe="")
+
     # Persist to Storage Service (Local or S3)
     try:
         from app.services.storage import get_storage_service
         storage_service = get_storage_service()
-        pdf_storage_key = f"exports/{paper_id}_{safe_filename}"
+        pdf_storage_key = f"exports/{paper_id}_{ascii_filename}"
         await storage_service.upload_bytes(pdf_bytes, pdf_storage_key, content_type="application/pdf")
     except Exception:
-        pass
-    
+        logger.warning("Could not persist exported PDF to storage; serving it inline anyway.", exc_info=True)
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'}
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_filename}"; '
+                f"filename*=UTF-8''{encoded_filename}"
+            )
+        },
     )
 
 @router.get("/{paper_id}/analytics", response_model=PaperAnalyticsResponse)
@@ -318,7 +338,7 @@ async def get_paper_analytics(paper_id: int, db: AsyncSession = Depends(get_db))
 async def delete_paper(
     paper_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user)
 ):
     stmt = select(QuestionPaper).where(QuestionPaper.id == paper_id)
     paper = (await db.execute(stmt)).scalar_one_or_none()

@@ -17,13 +17,55 @@ export const api = axios.create({
   },
 });
 
+export const AUTH_TOKEN_KEY = 'academic_auth_token';
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('academic_auth_token');
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+/** Endpoints whose 401 means "those credentials are wrong", not "your session ended". */
+const CREDENTIAL_ENDPOINTS = ['/auth/login', '/auth/register'];
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const url: string = error?.config?.url ?? '';
+    const isCredentialCheck = CREDENTIAL_ENDPOINTS.some((path) => url.startsWith(path));
+
+    // An expired or revoked token otherwise leaves the UI stuck on screens that
+    // silently fail every request. Drop it and return to the signed-out state.
+    if (status === 401 && !isCredentialCheck && localStorage.getItem(AUTH_TOKEN_KEY)) {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      window.dispatchEvent(new CustomEvent('qagent:session-expired'));
+    }
+    return Promise.reject(error);
+  },
+);
+
+/**
+ * Reads the role claim out of the stored JWT.
+ *
+ * For deciding what to render only — every privileged route is enforced again
+ * on the server, which is the check that actually matters.
+ */
+export function getStoredUserRole(): string | null {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (!token) return null;
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(atob(normalized));
+    return typeof claims.role === 'string' ? claims.role : null;
+  } catch {
+    return null;
+  }
+}
 
 // Type Definitions
 export interface User {

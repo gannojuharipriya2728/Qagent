@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { api, type User } from './api/client';
+import { api, AUTH_TOKEN_KEY, type User } from './api/client';
 import { Navbar } from './components/Navbar';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -22,8 +22,20 @@ export const App: React.FC = () => {
     checkCurrentUser();
   }, []);
 
+  // The axios interceptor clears an expired token; mirror that in the UI so the
+  // user lands back on the sign-in screen instead of a page that cannot load.
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setCurrentUser(null);
+      setCurrentPage('login');
+      setPageParams({});
+    };
+    window.addEventListener('qagent:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('qagent:session-expired', handleSessionExpired);
+  }, []);
+
   const checkCurrentUser = async () => {
-    const token = localStorage.getItem('academic_auth_token');
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
     if (!token) return;
     try {
       const res = await api.get('/auth/me');
@@ -32,7 +44,7 @@ export const App: React.FC = () => {
         setCurrentPage('profile');
       }
     } catch (e) {
-      localStorage.removeItem('academic_auth_token');
+      localStorage.removeItem(AUTH_TOKEN_KEY);
       setCurrentUser(null);
     }
   };
@@ -49,7 +61,7 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('academic_auth_token');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     setCurrentUser(null);
     handleNavigate('landing');
   };

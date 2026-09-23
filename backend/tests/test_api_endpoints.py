@@ -332,3 +332,97 @@ async def test_faculty_profile_with_null_and_assigned_faculty_id_courses():
 
 
 
+
+
+@pytest.mark.asyncio
+async def test_every_router_is_mounted_under_the_api_prefix():
+    """
+    Guards against a router silently disappearing from the app.
+
+    A missing `router = APIRouter(...)` in one module raised NameError at import
+    time and took the whole service down; a router that merely fails to mount
+    would instead 404 every one of its endpoints.
+    """
+    from app.main import iter_route_specs
+
+    paths = {path for path, _ in iter_route_specs()}
+    for expected in [
+        "/api/auth/register",
+        "/api/auth/login",
+        "/api/auth/me",
+        "/api/faculty/profile",
+        "/api/courses",
+        "/api/resources/upload",
+        "/api/generate",
+        "/api/papers",
+        "/api/admin/stats",
+        "/api/ai/health",
+    ]:
+        assert expected in paths, f"{expected} is not routable"
+
+
+@pytest.mark.asyncio
+async def test_privileged_endpoints_reject_anonymous_callers():
+    """
+    Administration and destructive or LLM-spending routes must never be
+    reachable without credentials.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        for method, path in [
+            ("get", "/api/admin/stats"),
+            ("get", "/api/admin/users"),
+            ("patch", "/api/admin/users/1/toggle-status"),
+            ("post", "/api/courses/reset-all"),
+            ("delete", "/api/courses/reset-all"),
+        ]:
+            resp = await getattr(client, method)(path)
+            assert resp.status_code in (401, 403), (
+                f"{method.upper()} {path} returned {resp.status_code} to an anonymous caller"
+            )
+
+        resp = await client.post("/api/generate", json={
+            "course_id": 1,
+            "title": "T",
+            "examination_name": "E",
+            "institution_name": "I",
+            "duration_minutes": 60,
+            "total_marks": 10,
+            "sections": [],
+            "difficulty_distribution": {},
+            "bloom_distribution": {},
+        })
+        assert resp.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_pdf_export_filename_survives_non_ascii_titles():
+    """
+    Paper titles carry em dashes (the app's own examination names do), and HTTP
+    headers are latin-1. Building Content-Disposition straight from the title
+    raised UnicodeEncodeError and turned every export into a 500.
+    """
+    import re
+    import unicodedata
+    from urllib.parse import quote
+
+    raw = "CS3401_End_Semester_Examination_—_Operating_Systems_Ãœbung.pdf"
+    ascii_filename = unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode("ascii")
+    ascii_filename = re.sub(r'[^A-Za-z0-9._-]', "_", ascii_filename).strip("._")
+    header = f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{quote(raw, safe="")}'
+
+    header.encode("latin-1")  # must not raise
+    assert ascii_filename.endswith(".pdf")
+    assert "—" not in ascii_filename
+
+
+@pytest.mark.asyncio
+async def test_ai_health_reports_unreachable_instead_of_raising():
+    """An unreachable LLM gateway must degrade, not 500 the health endpoint."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/ai/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert {"provider", "model", "configured", "reachable"} <= set(body)
+        assert isinstance(body["reachable"], bool)

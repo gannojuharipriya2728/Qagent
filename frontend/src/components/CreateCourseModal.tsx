@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   BookOpen, Plus, Trash2, X, CheckCircle2, AlertCircle, Sparkles, Layers, GraduationCap, FileText
 } from 'lucide-react';
-import { api, type Course, type CourseCreate, type UnitCreate, type CourseOutcomeCreate } from '../api/client';
+import { api, getStoredUserRole, type Course, type CourseCreate, type UnitCreate, type CourseOutcomeCreate } from '../api/client';
 
 interface CreateCourseModalProps {
   isOpen: boolean;
@@ -94,6 +94,9 @@ export const CreateCourseModal: React.FC<CreateCourseModalProps> = ({
 
   // State
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Wiping every course, resource and paper is an administrator action; the
+  // server rejects it for anyone else, so do not offer it to faculty.
+  const isAdmin = getStoredUserRole() === 'admin';
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -424,14 +427,16 @@ export const CreateCourseModal: React.FC<CreateCourseModalProps> = ({
                 >
                   ⚡ Overwrite & Save Course Details
                 </button>
-                <button
-                  type="button"
-                  onClick={handleResetAllData}
-                  disabled={isSubmitting}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold text-[11px] shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  🗑️ Wipe All Database Data
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleResetAllData}
+                    disabled={isSubmitting}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold text-[11px] shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    🗑️ Wipe All Database Data
+                  </button>
+                )}
               </div>
             )}
           </div>

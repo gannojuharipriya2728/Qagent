@@ -77,16 +77,28 @@ class AcademicVectorStore(BaseVectorStore):
             return
         if os.path.exists(self.storage_path):
             try:
+                expected_dim = embedding_engine.dimension
+                skipped = 0
                 with open(self.storage_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     for item in data:
+                        vector = item["vector"]
+                        # A vector written by an older index has a different width
+                        # and is not comparable with current queries. Dropping it
+                        # lets similarity_search re-hydrate the chunk from
+                        # PostgreSQL instead of ranking against a stale space.
+                        if len(vector) != expected_dim:
+                            skipped += 1
+                            continue
                         doc = VectorDocument(
                             doc_id=item["doc_id"],
                             content=item["content"],
-                            vector=item["vector"],
+                            vector=vector,
                             metadata=item["metadata"]
                         )
                         self.documents[doc.doc_id] = doc
+                if skipped:
+                    print(f"Notice: dropped {skipped} vector(s) of incompatible dimension; they will be re-embedded from the database.")
             except Exception as e:
                 print(f"Warning: Could not load vector store from disk: {e}")
 

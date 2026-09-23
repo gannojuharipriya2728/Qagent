@@ -1,10 +1,14 @@
+import logging
 import os
+import secrets
 import urllib.parse
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
 load_dotenv()
+
+logger = logging.getLogger("qagent.config")
 
 def get_normalized_database_url(url: str) -> str:
     """
@@ -124,6 +128,36 @@ def get_safe_db_info(url: str) -> Dict[str, Any]:
         }
 
 
+SECRET_KEY_ENV_VARS = ("SECRET_KEY", "JWT_SECRET")
+
+
+# HS256 derives its strength from the key; PyJWT itself warns below this.
+MIN_SECRET_KEY_BYTES = 32
+
+
+def resolve_secret_key() -> str:
+    """
+    Resolves the JWT signing key from the environment.
+
+    No usable default is shipped in source: a signing key committed to version
+    control would let anyone mint valid tokens for the deployment. When nothing
+    is configured we fall back to a per-process random key, which keeps tokens
+    unforgeable at the cost of invalidating sessions on restart.
+    """
+    for var in SECRET_KEY_ENV_VARS:
+        value = (os.getenv(var) or "").strip()
+        if value:
+            if len(value.encode("utf-8")) < MIN_SECRET_KEY_BYTES:
+                logger.warning(
+                    "%s is shorter than %d bytes, which weakens HS256 token signing. "
+                    "Generate one with: openssl rand -hex 32",
+                    var,
+                    MIN_SECRET_KEY_BYTES,
+                )
+            return value
+    return secrets.token_urlsafe(64)
+
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "QAgent — Agentic AI Question Generator"
     VERSION: str = "1.0.0"
@@ -134,7 +168,10 @@ class Settings(BaseSettings):
     SEED_DEMO_DATA: bool = os.getenv("SEED_DEMO_DATA", "false").lower() in ["true", "1", "yes"]
     
     # Security
-    SECRET_KEY: str = "agentic-ai-academic-rag-secret-key-2026-super-secure"
+    # Resolved from the environment only. When nothing is configured a per-process
+    # random secret is generated so that a deployment can never fall back to a
+    # publicly known signing key (see resolve_secret_key()).
+    SECRET_KEY: str = resolve_secret_key()
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
@@ -158,10 +195,9 @@ class Settings(BaseSettings):
         default_prod_origins = [
             "https://qagent-frontend-jxvh.vercel.app",
             "https://qagent-frontend-iota.vercel.app",
-            "https://qagent-131s.vercel.app",
             "https://qagent.vercel.app"
         ]
-        
+
         if not origins:
             if self.ENVIRONMENT.lower() == "production":
                 origins = list(default_prod_origins)
@@ -182,6 +218,20 @@ class Settings(BaseSettings):
             origins = [o for o in origins if o != "*"]
 
         return origins
+
+    @property
+    def CORS_ORIGIN_REGEX(self) -> str:
+        """
+        Matches Vercel preview deployments of this project only.
+
+        Vercel derives preview hostnames from the project name, so anchoring on
+        the `qagent` prefix admits our own previews without opening the API to
+        every application hosted on vercel.app.
+        """
+        return os.getenv(
+            "CORS_ORIGIN_REGEX",
+            r"^https://qagent[a-z0-9._-]*\.vercel\.app$",
+        )
 
     # LLM Settings (OpenRouter Primary Provider / NVIDIA Alternate)
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openrouter")  # "openrouter", "nvidia", "ollama", "deterministic"
@@ -246,15 +296,28 @@ class Settings(BaseSettings):
 
     @property
     def RESOLVED_DATABASE_URL(self) -> str:
+        """
+        Resolves the connection string actually handed to SQLAlchemy.
+
+        Production must run on managed PostgreSQL (Neon). Silently degrading to
+        a local SQLite file there would look healthy while every write landed on
+        an ephemeral container disk, so both failure modes raise instead.
+        """
         raw_url = (self.DATABASE_URL or "").strip()
-        if os.getenv("VERCEL") and ("sqlite" in raw_url.lower() or not raw_url):
-            return "sqlite+aiosqlite:////tmp/academic_rag.db"
+
         if self.ENVIRONMENT.lower() == "production":
-            if not raw_url or "sqlite" in raw_url.lower():
-                if os.getenv("VERCEL"):
-                    return "sqlite+aiosqlite:////tmp/academic_rag.db"
-                return "sqlite+aiosqlite:///./data/academic_rag.db"
+            if not raw_url:
+                raise ValueError(
+                    "DATABASE_URL environment variable is missing. Production requires a "
+                    "managed PostgreSQL connection string (Neon)."
+                )
+            if "sqlite" in raw_url.lower():
+                raise ValueError(
+                    "SQLite is not permitted in production mode. Set DATABASE_URL to the "
+                    "Neon PostgreSQL connection string."
+                )
             return raw_url
+
         return raw_url if raw_url else "sqlite+aiosqlite:///./data/academic_rag.db"
 
     @property

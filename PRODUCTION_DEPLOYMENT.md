@@ -131,15 +131,46 @@ py backend/scripts/create_initial_admin.py \
 
 ## 6. Running the Production Server
 
-### Render Web Service Settings:
-- **Root Directory**: `backend`
-- **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2`
+### Render Web Service Settings
 
-### Direct Production Startup:
+`render.yaml` in the repository root is the authoritative blueprint. The live
+service was created from the dashboard, so its settings must match:
+
+| Setting | Value |
+|---|---|
+| Root Directory | *(blank — repository root)* |
+| Build Command | `pip install --upgrade pip && pip install -r requirements.txt` |
+| Start Command | `uvicorn asgi:app --host 0.0.0.0 --port $PORT --workers 1` |
+| Health Check Path | `/health` |
+| Python Version | `3.11` (`PYTHON_VERSION` env var) |
+
+The application package lives in `backend/` and imports itself absolutely
+(`from app.core.config import ...`), so `backend/` must be on `sys.path`.
+`uvicorn backend.app.main:app` from the repository root therefore fails with
+`ModuleNotFoundError: app`. Two start commands are valid:
+
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+# Root Directory blank — asgi.py puts backend/ on sys.path.
+uvicorn asgi:app --host 0.0.0.0 --port $PORT --workers 1
+
+# Root Directory = backend
+uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
 ```
+
+Prefer the first: running from the repository root also makes `alembic.ini` and
+`alembic/` reachable for migrations.
+
+**Use a single worker.** The local vector store is an in-process singleton that
+persists to a JSON file. Additional workers each keep their own copy and write
+to the same path, which wastes memory and races on that file. Retrieval still
+returns correct results — `similarity_search` re-hydrates a course's chunks from
+PostgreSQL when they are not in memory — but there is nothing to gain. Scale out
+only after moving the index to `VECTOR_STORE_PROVIDER=pgvector`.
+
+### Bind to Render's port
+
+Render injects `$PORT`; never hardcode 8000 in the start command. Binding to
+`0.0.0.0` is required for the health check to reach the process.
 
 ### Health Check Endpoint:
 ```bash
