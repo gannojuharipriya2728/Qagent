@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from pathlib import Path
 
 # Add backend directory to sys.path so app modules are discoverable
@@ -10,6 +11,32 @@ for p in [str(BACKEND_DIR), str(ROOT_DIR), str(Path(__file__).resolve().parent)]
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from app.main import app
+try:
+    from app.main import app
+except Exception as e:
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    from fastapi.middleware.cors import CORSMiddleware
+
+    err_trace = traceback.format_exc()
+    app = FastAPI(title="Diagnostic Fallback")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
+    async def diag_catch_all(path_name: str = ""):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Failed to import app.main",
+                "exception": str(e),
+                "traceback": err_trace
+            }
+        )
 
 __all__ = ["app"]
