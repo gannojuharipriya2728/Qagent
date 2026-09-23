@@ -12,7 +12,6 @@ from app.schemas.paper import (
 )
 from app.api.deps import get_current_user_optional, get_current_user
 from app.models.user import User
-from app.services.pdf_generator import QuestionPaperPDFGenerator
 from app.services.agents.retrieval_agent import RAGRetrievalAgent
 from app.services.agents.generation_agent import QuestionGenerationAgent
 from app.services.agents.validation_agent import ValidationAgent
@@ -241,6 +240,7 @@ async def regenerate_single_question(
 
 @router.get("/{paper_id}/pdf")
 async def export_paper_pdf(paper_id: int, db: AsyncSession = Depends(get_db)):
+    from app.services.pdf_generator import QuestionPaperPDFGenerator
     paper_res = await get_paper(paper_id=paper_id, db=db)
     
     pdf_bytes = QuestionPaperPDFGenerator.generate_pdf(paper_res)
