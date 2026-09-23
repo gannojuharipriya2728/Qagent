@@ -1,3 +1,4 @@
+import logging
 import os
 import secrets
 import urllib.parse
@@ -6,6 +7,8 @@ from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
 load_dotenv()
+
+logger = logging.getLogger("qagent.config")
 
 def get_normalized_database_url(url: str) -> str:
     """
@@ -128,6 +131,10 @@ def get_safe_db_info(url: str) -> Dict[str, Any]:
 SECRET_KEY_ENV_VARS = ("SECRET_KEY", "JWT_SECRET")
 
 
+# HS256 derives its strength from the key; PyJWT itself warns below this.
+MIN_SECRET_KEY_BYTES = 32
+
+
 def resolve_secret_key() -> str:
     """
     Resolves the JWT signing key from the environment.
@@ -140,6 +147,13 @@ def resolve_secret_key() -> str:
     for var in SECRET_KEY_ENV_VARS:
         value = (os.getenv(var) or "").strip()
         if value:
+            if len(value.encode("utf-8")) < MIN_SECRET_KEY_BYTES:
+                logger.warning(
+                    "%s is shorter than %d bytes, which weakens HS256 token signing. "
+                    "Generate one with: openssl rand -hex 32",
+                    var,
+                    MIN_SECRET_KEY_BYTES,
+                )
             return value
     return secrets.token_urlsafe(64)
 
