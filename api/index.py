@@ -1,53 +1,70 @@
 import os
 import sys
 import traceback
-from pathlib import Path
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-# Add all candidate paths to sys.path so 'app' and 'backend' are discoverable
-curr_dir = Path(__file__).resolve().parent
-candidates = [
-    curr_dir,
-    curr_dir.parent,
-    curr_dir.parent / "backend",
-    curr_dir.parent.parent,
-    curr_dir.parent.parent / "backend",
-]
+app = FastAPI(title="QAgent Diagnostic")
 
-for p in candidates:
-    if p.exists() and str(p) not in sys.path:
-        sys.path.insert(0, str(p))
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-try:
-    try:
-        from app.main import app
-    except ImportError:
-        from backend.app.main import app
-except Exception as e:
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-    from fastapi.middleware.cors import CORSMiddleware
+# Configure paths
+curr_dir = os.path.abspath(os.path.dirname(__file__))
+parent_dir = os.path.abspath(os.path.join(curr_dir, ".."))
+backend_dir = os.path.join(parent_dir, "backend")
+for p in [curr_dir, parent_dir, backend_dir]:
+    if os.path.exists(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
-    err_trace = traceback.format_exc()
-    app = FastAPI(title="Emergency Diagnostic App")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+@app.get("/")
+@app.get("/health")
+@app.get("/api/health")
+async def health_diag():
+    diag = {
+        "status": "online",
+        "python_version": sys.version,
+        "cwd": os.getcwd(),
+        "sys_path": sys.path[:8],
+        "dir_contents": os.listdir(".") if os.path.exists(".") else [],
+        "modules": {}
+    }
     
-    @app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
-    async def emergency_catch_all(path_name: str):
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "FastAPI App Import Failed on Serverless Runtime",
-                "exception": str(e),
-                "traceback": err_trace,
-                "sys_path": sys.path[:8],
-                "cwd": os.getcwd()
-            }
-        )
+    modules_to_test = [
+        "fastapi",
+        "pydantic",
+        "pydantic_settings",
+        "sqlalchemy",
+        "aiosqlite",
+        "asyncpg",
+        "jose",
+        "app.core.config",
+        "app.core.database",
+        "app.core.security",
+        "app.models.user",
+        "app.models.academic",
+        "app.models.paper",
+        "app.models.resource",
+        "app.api.auth",
+        "app.api.courses",
+        "app.services.rag.embeddings",
+        "app.services.pdf_generator",
+        "app.main"
+    ]
+    
+    for mod in modules_to_test:
+        try:
+            __import__(mod)
+            diag["modules"][mod] = "OK"
+        except Exception as e:
+            diag["modules"][mod] = f"FAILED: {e} -> {traceback.format_exc()}"
+            
+    return diag
 
 __all__ = ["app"]
