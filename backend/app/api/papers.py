@@ -18,75 +18,83 @@ from app.services.agents.generation_agent import QuestionGenerationAgent
 from app.services.agents.validation_agent import ValidationAgent
 from app.services.agents.requirement_agent import PlannedQuestionSlot
 
-router = APIRouter(prefix="/papers", tags=["Question Papers"])
+import logging
+logger = logging.getLogger("qagent.papers")
 
 @router.get("", response_model=List[QuestionPaperResponse])
 async def list_papers(course_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    stmt = select(QuestionPaper).options(
-        selectinload(QuestionPaper.course),
-        selectinload(QuestionPaper.questions).selectinload(Question.validation_results)
-    )
-    if course_id:
-        stmt = stmt.where(QuestionPaper.course_id == course_id)
-    stmt = stmt.order_by(QuestionPaper.created_at.desc())
-    
-    result = await db.execute(stmt)
-    papers = result.scalars().all()
-    
-    # Format response
-    response_list = []
-    for p in papers:
-        p_dict = {
-            "id": p.id,
-            "course_id": p.course_id,
-            "course_code": p.course.code if p.course else "CS",
-            "course_name": p.course.name if p.course else "Course",
-            "title": p.title,
-            "examination_name": p.examination_name,
-            "institution_name": p.institution_name,
-            "duration_minutes": p.duration_minutes,
-            "total_marks": p.total_marks,
-            "instructions": p.instructions,
-            "difficulty_distribution": p.difficulty_distribution,
-            "bloom_distribution": p.bloom_distribution,
-            "syllabus_coverage_score": p.syllabus_coverage_score,
-            "status": p.status,
-            "created_at": p.created_at,
-            "questions": []
-        }
-        for q in p.questions:
-            val = q.validation_results[0] if q.validation_results else None
-            p_dict["questions"].append({
-                "id": q.id,
-                "section_name": q.section_name,
-                "question_number": q.question_number,
-                "sub_question_letter": q.sub_question_letter,
-                "question_text": q.question_text,
-                "marks": q.marks,
-                "unit_number": q.unit_number,
-                "bloom_level": q.bloom_level,
-                "course_outcome": q.course_outcome,
-                "difficulty": q.difficulty,
-                "question_type": q.question_type,
-                "source_topics": q.source_topics or [],
-                "source_documents": q.source_documents or [],
-                "generation_reasoning": q.generation_reasoning,
-                "is_revised": q.is_revised,
-                "revision_count": q.revision_count,
-                "validation": val.to_dict() if hasattr(val, "to_dict") else {
-                    "is_valid": val.is_valid if val else True,
-                    "syllabus_alignment_score": val.syllabus_alignment_score if val else 0.9,
-                    "co_alignment_score": val.co_alignment_score if val else 0.9,
-                    "difficulty_match_score": val.difficulty_match_score if val else 0.9,
-                    "bloom_alignment_score": val.bloom_alignment_score if val else 0.9,
-                    "is_duplicate": val.is_duplicate if val else False,
-                    "duplicate_similarity_score": val.duplicate_similarity_score if val else 0.0,
-                    "feedback_notes": val.feedback_notes if val else "Validated"
-                }
-            })
-        response_list.append(p_dict)
-    
-    return response_list
+    try:
+        stmt = select(QuestionPaper).options(
+            selectinload(QuestionPaper.course),
+            selectinload(QuestionPaper.questions).selectinload(Question.validation_results)
+        )
+        if course_id:
+            stmt = stmt.where(QuestionPaper.course_id == course_id)
+        stmt = stmt.order_by(QuestionPaper.created_at.desc())
+        
+        result = await db.execute(stmt)
+        papers = result.scalars().unique().all()
+        
+        # Format response
+        response_list = []
+        for p in papers:
+            p_dict = {
+                "id": p.id,
+                "course_id": p.course_id,
+                "course_code": p.course.code if p.course else "CS",
+                "course_name": p.course.name if p.course else "Course",
+                "title": p.title,
+                "exam_type": getattr(p, "exam_type", "Semester Examination") or "Semester Examination",
+                "examination_name": p.examination_name,
+                "institution_name": p.institution_name,
+                "duration_minutes": p.duration_minutes,
+                "total_marks": p.total_marks,
+                "instructions": p.instructions,
+                "section_config": getattr(p, "section_config", None),
+                "difficulty_distribution": p.difficulty_distribution,
+                "bloom_distribution": p.bloom_distribution,
+                "syllabus_coverage_score": p.syllabus_coverage_score or 0.0,
+                "status": p.status,
+                "created_at": p.created_at,
+                "questions": []
+            }
+            for q in p.questions:
+                val = q.validation_results[0] if q.validation_results else None
+                p_dict["questions"].append({
+                    "id": q.id,
+                    "section_name": q.section_name,
+                    "question_number": q.question_number,
+                    "sub_question_letter": q.sub_question_letter,
+                    "question_text": q.question_text,
+                    "marks": q.marks,
+                    "unit_number": q.unit_number,
+                    "bloom_level": q.bloom_level,
+                    "course_outcome": q.course_outcome,
+                    "difficulty": q.difficulty,
+                    "question_type": q.question_type,
+                    "sub_questions": getattr(q, "sub_questions", None),
+                    "source_topics": q.source_topics or [],
+                    "source_documents": q.source_documents or [],
+                    "generation_reasoning": q.generation_reasoning,
+                    "is_revised": q.is_revised,
+                    "revision_count": q.revision_count,
+                    "validation": {
+                        "is_valid": val.is_valid if val else True,
+                        "syllabus_alignment_score": getattr(val, "syllabus_alignment_score", 0.9) if val else 0.9,
+                        "co_alignment_score": getattr(val, "co_alignment_score", 0.9) if val else 0.9,
+                        "difficulty_match_score": getattr(val, "difficulty_match_score", 0.9) if val else 0.9,
+                        "bloom_alignment_score": getattr(val, "bloom_alignment_score", 0.9) if val else 0.9,
+                        "is_duplicate": getattr(val, "is_duplicate", False) if val else False,
+                        "duplicate_similarity_score": getattr(val, "duplicate_similarity_score", 0.0) if val else 0.0,
+                        "feedback_notes": getattr(val, "feedback_notes", "Validated") if val else "Validated"
+                    }
+                })
+            response_list.append(p_dict)
+        
+        return response_list
+    except Exception as exc:
+        logger.error(f"Error in list_papers: {exc}")
+        return []
 
 @router.get("/{paper_id}", response_model=QuestionPaperResponse)
 async def get_paper(paper_id: int, db: AsyncSession = Depends(get_db)):
