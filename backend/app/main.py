@@ -56,6 +56,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from starlette.requests import Request
+
+# Vercel Serverless Path Restoration Middleware
+@app.middleware("http")
+async def vercel_path_rewrite_middleware(request: Request, call_next):
+    matched_path = (
+        request.headers.get("x-matched-path")
+        or request.headers.get("x-vercel-matched-path")
+        or request.headers.get("x-forwarded-uri")
+    )
+    current_path = request.scope.get("path", "")
+    
+    if matched_path and current_path in ["/api/index.py", "/api/index", "/index.py", "/api"]:
+        clean_matched = matched_path.split("?")[0]
+        request.scope["path"] = clean_matched
+        request.scope["raw_path"] = clean_matched.encode("ascii")
+    elif current_path.startswith("/api/index.py"):
+        new_path = current_path.replace("/api/index.py", "") or "/"
+        request.scope["path"] = new_path
+        request.scope["raw_path"] = new_path.encode("ascii")
+        
+    return await call_next(request)
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
